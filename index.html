@@ -52,6 +52,7 @@ td.r,th.r{text-align:right}
 .tag{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:12px;font-weight:700}
 .tag.moi{background:#FFF3D6;color:#8a6100}.tag.giao{background:#DCE9F7;color:#2E6DA4}
 .tag.xong{background:#DFF0DC;color:#2E7031}.tag.huy{background:#F7DCDC;color:#B3402E}
+.tag.hoan{background:#F5E1C0;color:#8a5000}
 .tag.vat{background:#F3E3F7;color:#7A3B8F}
 .tag.thu{background:#DFF0DC;color:#2E7031}.tag.chuathu{background:#FFF3D6;color:#8a6100}
 .btn{display:block;width:100%;padding:13px;border:none;border-radius:12px;background:var(--green);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:12px}
@@ -125,8 +126,9 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6
 const today = () => new Date().toISOString().slice(0,10);
 const rndCode = pfx => pfx+'-'+new Date().toISOString().slice(2,10).replace(/-/g,'')+'-'+Math.random().toString(36).slice(2,6).toUpperCase();
 const hp = s => { let h=5381; for(const c of s) h=((h*33)+c.charCodeAt(0))>>>0; return h.toString(36); };
-const STATUS = {moi:'Chờ giao', giao:'Đang giao', xong:'Đã giao', huy:'Hủy'};
-const TAGC = {moi:'moi', giao:'giao', xong:'xong', huy:'huy'};
+const STATUS = {moi:'Chờ giao', giao:'Đang giao', xong:'Đã giao', hoan:'Hoàn hàng', huy:'Hủy'};
+const TAGC = {moi:'moi', giao:'giao', xong:'xong', hoan:'hoan', huy:'huy'};
+const CLOSED_NO_SALE = ['huy','hoan']; // trang thai khong tinh la ban duoc, khong dua vao doanh thu/loi nhuan
 const PAYM = {tienmat:'Tiền mặt', chuyenkhoan:'Chuyển khoản', cod:'COD (thu hộ)'};
 
 /* ================= MO HINH DU LIEU =================
@@ -325,7 +327,7 @@ function inRange(dstr, range){
   if(range==='year') return d.startsWith(`${y}-`);
   return true;
 }
-function activeOrders(range){ return db.orders.filter(o=>o.status!=='huy' && inRange(o.date, range)); }
+function activeOrders(range){ return db.orders.filter(o=>!CLOSED_NO_SALE.includes(o.status) && inRange(o.date, range)); }
 function supplierDebt(supplierId){
   return db.entries.filter(e=>e.supplierId===supplierId && !e.paid).reduce((s,e)=>s+e.qty*e.cost,0);
 }
@@ -384,7 +386,7 @@ function renderDash(){
     || '<tr><td colspan="4" class="empty">Chưa có dữ liệu</td></tr>';
   h += '<div class="sec"><h3>Theo ngày (trong kỳ)</h3><table><tr><th>Ngày</th><th class="r">Đơn</th><th class="r">Doanh thu</th>'+(own?'<th class="r">Lợi nhuận</th>':'')+'</tr>'+dayRows+'</table></div>';
   const byMonth = {};
-  db.orders.filter(o=>o.status!=='huy' && o.date.startsWith(new Date().getFullYear()+'-') && (own||o.staffId===me.staffId)).forEach(o=>{
+  db.orders.filter(o=>!CLOSED_NO_SALE.includes(o.status) && o.date.startsWith(new Date().getFullYear()+'-') && (own||o.staffId===me.staffId)).forEach(o=>{
     const m=o.date.slice(0,7); byMonth[m]=byMonth[m]||{rev:0,n:0,p:0}; byMonth[m].rev+=orderRevenue(o); byMonth[m].n++; byMonth[m].p+=orderProfit(o); });
   const monRows = Object.entries(byMonth).sort().map(([m,v])=>
     '<tr><td>Tháng '+(+m.slice(5))+'</td><td class="r">'+v.n+'</td><td class="r money">'+fmt(v.rev)+'</td>'+(own?'<td class="r '+(v.p<0?'neg':'money')+'">'+fmt(v.p)+'</td>':'')+'</tr>').join('')
@@ -519,6 +521,7 @@ function viewOrder(id){
   ${o.note?`<div class="tot"><span>Ghi chú: ${esc(o.note)}</span></div>`:''}
   </div></div>
   ${isOwner() && o.status==='moi' ? `<button class="btn gold" onclick="setStatus('${o.id}','giao')">✔ DUYỆT — chuyển sang Đang giao</button>` : ''}
+  ${isOwner() && o.status==='giao' ? `<button class="btn line" style="border-color:#8a5000;color:#8a5000" onclick="if(confirm('Xác nhận khách KHÔNG NHẬN hàng, đơn bị hoàn về? Phí ship ${fmt(o.ship)} sẽ được ghi là lỗ.')) setStatus('${o.id}','hoan')">↩ Khách không nhận — Đánh dấu HOÀN HÀNG</button>` : ''}
   ${isOwner()? `<label>Trạng thái giao</label>
   <select onchange="setStatus('${o.id}',this.value)">${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${o.status===k?'selected':''}>${v}</option>`).join('')}</select>` : `<div class="hint">Đơn sẽ được Quản lý duyệt và cập nhật trạng thái giao hàng.</div>`}
   ${isOwner()? `<label>Phương thức thanh toán</label>
@@ -532,14 +535,24 @@ function viewOrder(id){
 async function setStatus(id,s){
   if(!isOwner()) return;
   const o = db.orders.find(x=>x.id===id);
-  if(o.status!=='huy' && s==='huy') o.items.forEach(it=>{ const p=db.products.find(x=>x.id===it.pid); if(p) p.stock+=it.qty; });
-  if(o.status==='huy' && s!=='huy') o.items.forEach(it=>{ const p=db.products.find(x=>x.id===it.pid); if(p) p.stock-=it.qty; });
-  o.status = s; await saveRec('orders',o); if(o.status==='huy'||s==='moi') await saveCatalog(); render();
+  const wasOpen = !CLOSED_NO_SALE.includes(o.status), willClose = CLOSED_NO_SALE.includes(s);
+  const wasClosed = CLOSED_NO_SALE.includes(o.status), willOpen = !CLOSED_NO_SALE.includes(s);
+  if(wasOpen && willClose) o.items.forEach(it=>{ const p=db.products.find(x=>x.id===it.pid); if(p) p.stock+=it.qty; });
+  if(wasClosed && willOpen) o.items.forEach(it=>{ const p=db.products.find(x=>x.id===it.pid); if(p) p.stock-=it.qty; });
+  // Hoan hang: tien ship da chi cho don vi van chuyen KHONG lay lai duoc -> ghi nhan la 1 khoan lo that,
+  // chi ghi 1 lan duy nhat (tranh viec bam qua lai nhieu lan bi tinh lap).
+  if(s==='hoan' && !o._returnFeeLogged && o.ship>0){
+    const exp = {id:uid(), date:today(), type:'Phí ship đơn hoàn về', method:'tienmat', amount:o.ship, note:'Đơn '+o.code+' — khách không nhận hàng'};
+    db.expenses.push(exp); await saveRec('expenses', exp);
+    o._returnFeeLogged = true;
+  }
+  o.status = s; await saveRec('orders',o); if(willClose||willOpen) await saveCatalog(); render();
 }
 async function setPayMethod(id,v){ if(!isOwner())return; const o=db.orders.find(x=>x.id===id); o.payMethod=v; await saveRec('orders',o); render(); }
 async function markPaid(id){
   if(!isOwner()) return;
   const o = db.orders.find(x=>x.id===id); if(!o) return;
+  if(CLOSED_NO_SALE.includes(o.status)){ alert('Đơn đã hủy/hoàn thì không thu tiền được.'); return; }
   o.payStatus='roi'; o.paidAt=Date.now();
   await saveRec('orders',o);
   const inc = {id:uid(), date:today(), type:'ban_hang', amount:orderRevenue(o), method:o.payMethod||'tienmat', note:'Thu tiền đơn '+o.code, orderId:o.id};
@@ -550,7 +563,7 @@ async function setVatNo(id,v){ if(!canInvoice()) return; const o=db.orders.find(
 async function delOrder(id){
   if(!confirm('Xóa đơn này? Tồn kho sẽ được hoàn lại.')) return;
   const o = db.orders.find(x=>x.id===id);
-  if(o.status!=='huy') o.items.forEach(it=>{ const p=db.products.find(x=>x.id===it.pid); if(p) p.stock+=it.qty; });
+  if(!CLOSED_NO_SALE.includes(o.status)) o.items.forEach(it=>{ const p=db.products.find(x=>x.id===it.pid); if(p) p.stock+=it.qty; });
   db.orders = db.orders.filter(x=>x.id!==id); await delRec('orders', id); await saveCatalog(); closeSheet(); render();
 }
 function printOrder(id){
@@ -629,7 +642,7 @@ function renderCust(){
   $('view').innerHTML = `
   <input class="search" placeholder="🔍 Tìm tên, SĐT, địa chỉ…" value="${esc(window._cq||'')}" oninput="window._cq=this.value;renderCust()">
   <div class="sec">${ list.length ? list.map(c=>{
-    const os = db.orders.filter(o=>o.custId===c.id && o.status!=='huy');
+    const os = db.orders.filter(o=>o.custId===c.id && !CLOSED_NO_SALE.includes(o.status));
     const tot = os.reduce((s,o)=>s+orderRevenue(o),0);
     return `<div class="list-item" onclick="viewCust('${c.id}')">
       <div><div class="t">${esc(c.name)}</div><div class="s">📞 ${esc(c.phone)}<br>📍 ${esc(c.address)}</div></div>
@@ -742,11 +755,11 @@ async function saveSupplier(id){
 }
 async function delSupplier(id){ if(!confirm('Xóa nhà cung cấp này?')) return; db.suppliers = db.suppliers.filter(x=>x.id!==id); await saveCatalog(); closeSheet(); render(); }
 async function markEntryPaid(id){
+  // Chi luu trang thai da tra NCC de theo doi cong no — KHONG tu tao khoan Chi.
+  // Ly do: gia von hang ban da duoc tru rieng qua tung don hang (COGS), neu them
+  // 1 khoan "Chi nhap hang" o day se bi TRU TRUNG vao loi nhuan.
   const e = db.entries.find(x=>x.id===id); if(!e) return;
   e.paid = true; await saveRec('entries', e);
-  const sup = db.suppliers.find(x=>x.id===e.supplierId);
-  const exp = {id:uid(), date:today(), type:'Chi nhập hàng', method:'tienmat', amount:e.qty*e.cost, note:'Trả NCC '+(sup?sup.name:'')+' — phiếu nhập '+e.date};
-  db.expenses.push(exp); await saveRec('expenses', exp);
   render();
 }
 function formProduct(id){
@@ -840,8 +853,8 @@ async function saveAdjust(){
 }
 /* ================= HOA DON DO (DAU RA / DAU VAO) ================= */
 function renderInvoices(){
-  const pending = db.orders.filter(o=>o.vatNeed && !o.vatNo && o.status!=='huy');
-  const issued = db.orders.filter(o=>o.vatNeed && o.vatNo && o.status!=='huy');
+  const pending = db.orders.filter(o=>o.vatNeed && !o.vatNo && !CLOSED_NO_SALE.includes(o.status));
+  const issued = db.orders.filter(o=>o.vatNeed && o.vatNo && !CLOSED_NO_SALE.includes(o.status));
   let h = '<div class="hint" style="margin-bottom:2px">Dữ liệu liên kết trực tiếp với Đơn hàng và Kho — không nhập trùng.</div>';
   h += '<div class="sec"><h3>🧾 Hóa đơn đỏ ĐẦU RA — chờ xuất ('+pending.length+')</h3>'
     + (pending.map(o=>{ const c = db.customers.find(x=>x.id===o.custId);
@@ -910,7 +923,7 @@ function renderAdmin(){
   let h = '';
   if(!own) h += '<div class="sec"><div class="empty">🔒 Đang ở chế độ nhân viên.<br>Giá vốn, lợi nhuận, chi phí, hóa đơn đầu vào và sao lưu chỉ chủ tài khoản xem được.</div></div>';
   h += '<div class="sec"><h3>Nhân viên sale '+(own?'<span class="act" onclick="formStaff()">+ Thêm</span>':'')+'</h3>'
-    + (db.staff.map(s=>{ const os = db.orders.filter(o=>o.staffId===s.id&&o.status!=='huy');
+    + (db.staff.map(s=>{ const os = db.orders.filter(o=>o.staffId===s.id&&!CLOSED_NO_SALE.includes(o.status));
       return '<div class="list-item" onclick="formStaff(\''+s.id+'\')"><div><div class="t">'+esc(s.name)+'</div><div class="s">📞 '+esc(s.phone||'—')+' · Hoa hồng '+s.pct+'%</div></div><div style="text-align:right"><div class="money">'+fmt(os.reduce((x,o)=>x+orderRevenue(o),0))+'</div><div class="s">'+os.length+' đơn (tổng)</div></div></div>';}).join('')
       || '<div class="empty">Chưa có nhân viên</div>') + '</div>';
   h += '<div class="sec"><h3>Chương trình / chính sách CK '+(own?'<span class="act" onclick="formPromo()">+ Thêm</span>':'')+'</h3>'
@@ -985,7 +998,8 @@ function formExpense(){
   if(!isOwner()) return;
   openSheet(`<h2>➕ Thêm chi phí</h2>
   <label>Ngày</label><input id="x_date" type="date" value="${today()}">
-  <label>Loại chi phí</label><select id="x_type"><option>Lương cứng nhân viên</option><option>Quảng cáo Facebook</option><option>Vật tư đóng gói</option><option>Thuê kho / mặt bằng</option><option>Chi nhập hàng</option><option>Khác</option></select>
+  <label>Loại chi phí</label><select id="x_type" onchange="$('x_warn').style.display=this.value==='Chi nhập hàng'?'block':'none'"><option>Lương cứng nhân viên</option><option>Quảng cáo Facebook</option><option>Vật tư đóng gói</option><option>Thuê kho / mặt bằng</option><option>Chi nhập hàng</option><option>Khác</option></select>
+  <div id="x_warn" class="hint" style="display:none;color:var(--red)">⚠ Giá vốn hàng bán đã được trừ tự động qua từng đơn hàng. Chỉ chọn mục này nếu khoản tiền KHÔNG liên quan hàng đã/sẽ bán (vd: hàng hỏng, mất mát), tránh trừ trùng vào lợi nhuận.</div>
   <label>Phương thức</label><select id="x_method">${Object.entries(PAYM).filter(([k])=>k!=='cod').map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select>
   <label>Số tiền (đ) *</label><input id="x_amt" type="number">
   <label>Ghi chú</label><input id="x_note">
