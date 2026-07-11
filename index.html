@@ -170,18 +170,28 @@ async function delRec(coll, id){
   catch(e){ $('sync').textContent = 'lỗi lưu!'; console.error(e); }
 }
 async function loadDB(){
+  // Tai Danh muc + 7 Ho so SONG SONG cung luc (khong tai lan luot, khong tai trung lap).
   let isNew = false;
-  try{
-    const cat = await dataApi.getCatalog();
-    Object.assign(db, {products:cat.products||[], customers:cat.customers||[], staff:cat.staff||[], suppliers:cat.suppliers||[], promos:cat.promos||[], users:cat.users||[]});
-  }catch(e){ isNew = true; db.products = defaultProducts(); }
-  ensureAdminSeed();
-  if(isNew){ try{ await saveCatalog(); }catch(e){ console.error(e); } }
-  try{ for(const name of RECORD_COLLECTIONS){ db[name] = await dataApi.getRecords(name); } }catch(e){ console.error('Lỗi tải hồ sơ', e); }
+  const catalogFirst = new Promise(resolve=>{
+    let first = true;
+    dataApi.subscribeCatalog(patch=>{
+      if(first){ first = false; if(!patch){ isNew = true; } resolve(); }
+      window.__applyCatalog(patch||{});
+    });
+  });
+  const recordFirsts = RECORD_COLLECTIONS.map(name=>new Promise(resolve=>{
+    let first = true;
+    dataApi.subscribeCollection(name, list=>{
+      if(first){ first = false; resolve(); }
+      window.__applyRecords(name, list);
+    });
+  }));
+  try{ await Promise.all([catalogFirst, ...recordFirsts]); }
+  catch(e){ console.error('Loi tai du lieu ban dau', e); }
+  if(isNew){ db.products = defaultProducts(); ensureAdminSeed(); try{ await saveCatalog(); }catch(e){ console.error(e); } }
+  else ensureAdminSeed();
   try{ const sid = await dataApi.getSession(); me = db.users.find(u=>u.id===sid)||null; }catch(e){ me = null; }
   $('sync').textContent = 'đã đồng bộ ✓';
-  dataApi.subscribeCatalog(patch=>window.__applyCatalog(patch));
-  RECORD_COLLECTIONS.forEach(name=>dataApi.subscribeCollection(name, list=>window.__applyRecords(name,list)));
   boot();
 }
 function defaultProducts(){
@@ -1164,7 +1174,7 @@ if(useFirebase){
     async setSession(v){ localStorage.setItem('anvifa_session', v); },
     subscribeCatalog(cb){
       onSnapshot(catalogRef, snap=>{
-        if(!snap.exists()) return;
+        if(!snap.exists()){ cb(null); return; }
         const raw = JSON.stringify(snap.data());
         if(raw !== lastCatalogPush) cb(snap.data());
       });
@@ -1188,8 +1198,8 @@ if(useFirebase){
     async delRecord(name, id){ const list = await this.getRecords(name); localStorage.setItem(lsKey(name), JSON.stringify(list.filter(x=>x.id!==id))); },
     async getSession(){ const v = localStorage.getItem('anvifa_session'); if(!v) throw new Error('empty'); return v; },
     async setSession(v){ localStorage.setItem('anvifa_session', v); },
-    subscribeCatalog(){ /* 1 máy, không cần realtime */ },
-    subscribeCollection(){ /* 1 máy, không cần realtime */ }
+    subscribeCatalog(cb){ this.getCatalog().then(cb).catch(()=>cb(null)); },
+    subscribeCollection(name, cb){ this.getRecords(name).then(list=>cb(list)); }
   };
   console.warn('ANVIFA: chưa cấu hình Firebase — dữ liệu chỉ lưu trên máy này. Xem hướng dẫn đi kèm để bật đồng bộ chung.');
   window.startApp();
