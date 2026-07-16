@@ -53,7 +53,6 @@ td.r,th.r{text-align:right}
 .tag.moi{background:#FFF3D6;color:#8a6100}.tag.giao{background:#DCE9F7;color:#2E6DA4}
 .tag.xong{background:#DFF0DC;color:#2E7031}.tag.huy{background:#F7DCDC;color:#B3402E}
 .tag.hoan{background:#F5E1C0;color:#8a5000}
-.tag.vat{background:#F3E3F7;color:#7A3B8F}
 .tag.thu{background:#DFF0DC;color:#2E7031}.tag.chuathu{background:#FFF3D6;color:#8a6100}
 .btn{display:block;width:100%;padding:13px;border:none;border-radius:12px;background:var(--green);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:12px}
 .btn.gold{background:var(--gold);color:#3d2b00}
@@ -103,7 +102,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--green2)}
 <body>
 <header>
   <div class="hleft"><h1>ANVI<b>FA</b> · Quản lý bán hàng</h1><div class="sub">Sức sống an lành</div></div>
-  <div class="hright"><span id="sync">đang tải…</span><button id="lockbtn" onclick="userBtn()" style="font-size:11.5px;background:rgba(255,255,255,.22);color:#fff;border:none;padding:5px 11px;border-radius:20px;cursor:pointer;font-weight:700;white-space:nowrap">…</button></div>
+  <div class="hright"><span id="sync">đang tải…</span><div style="display:flex;gap:5px"><button id="helpbtn" onclick="showHelp()" style="font-size:11.5px;background:rgba(255,255,255,.22);color:#fff;border:none;padding:5px 10px;border-radius:20px;cursor:pointer;font-weight:700;display:none">❓</button><button id="lockbtn" onclick="userBtn()" style="font-size:11.5px;background:rgba(255,255,255,.22);color:#fff;border:none;padding:5px 11px;border-radius:20px;cursor:pointer;font-weight:700;white-space:nowrap">…</button></div></div>
 </header>
 <div class="wrap" id="view"></div>
 <button class="fab" id="fab" onclick="fabClick()">+</button>
@@ -112,7 +111,6 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--green2)}
   <button data-t="orders" onclick="go('orders')"><span class="ic">🧾</span>Đơn hàng</button>
   <button data-t="cust" onclick="go('cust')"><span class="ic">👥</span>Khách</button>
   <button data-t="stock" onclick="go('stock')"><span class="ic">📦</span>Kho</button>
-  <button data-t="invoice" onclick="go('invoice')"><span class="ic">🧾</span>Hóa đơn</button>
   <button data-t="admin" onclick="go('admin')"><span class="ic">⚙️</span>Quản trị</button>
 </nav>
 <div class="overlay" id="ovl" onclick="closeSheet()"></div>
@@ -129,15 +127,17 @@ const hp = s => { let h=5381; for(const c of s) h=((h*33)+c.charCodeAt(0))>>>0; 
 const STATUS = {moi:'Chờ giao', giao:'Đang giao', xong:'Đã giao', hoan:'Hoàn hàng', huy:'Hủy'};
 const TAGC = {moi:'moi', giao:'giao', xong:'xong', hoan:'hoan', huy:'huy'};
 const CLOSED_NO_SALE = ['huy','hoan']; // trang thai khong tinh la ban duoc, khong dua vao doanh thu/loi nhuan
-const PAYM = {tienmat:'Tiền mặt', chuyenkhoan:'Chuyển khoản', cod:'COD (thu hộ)'};
+const PAYM = {tienmat:'Tiền mặt', chuyenkhoan:'Chuyển khoản', cod:'COD (thu hộ)', san:'Sàn TMĐT chuyển về'};
+const CHANNELS = {truc_tiep:'Trực tiếp', shopee:'Shopee', tiktok:'TikTok Shop', facebook:'Facebook'};
+const isMktOrder = o => !!o && (o.channel==='shopee'||o.channel==='tiktok'); // don san: tien thu ve do san tinh san
 
 /* ================= MO HINH DU LIEU =================
    "Catalog" (1 document, entity it thay doi): products, customers, staff, suppliers, promos, users
    "Ho so" (moi ban ghi 1 document rieng, tranh mat du lieu khi nhieu nguoi ghi cung luc):
-   orders, entries, quotes, adjustments, incomes, expenses, vatIn */
-const RECORD_COLLECTIONS = ['orders','entries','quotes','adjustments','incomes','expenses','vatIn'];
+   orders, entries, quotes, adjustments, incomes, expenses, labelEntries */
+const RECORD_COLLECTIONS = ['orders','entries','quotes','adjustments','incomes','expenses','labelEntries'];
 let db = { products:[], customers:[], staff:[], suppliers:[], promos:[], users:[],
-  orders:[], entries:[], quotes:[], adjustments:[], incomes:[], expenses:[], vatIn:[] };
+  orders:[], entries:[], quotes:[], adjustments:[], incomes:[], expenses:[], labelEntries:[] };
 let me = null, tab = 'dash', dashRange = 'month';
 window.__applyCatalog = function(patch){
   Object.assign(db, patch);
@@ -198,31 +198,31 @@ async function loadDB(){
 }
 function defaultProducts(){
   return [
-    {id:uid(),name:'Siêu Diệt Rong 400g',unit:'gói',cost:22000,price:45000,stock:0,minStock:10},
-    {id:uid(),name:'Kích Rễ Roots Extra 500ml',unit:'chai',cost:35000,price:75000,stock:0,minStock:10},
-    {id:uid(),name:'Phóng Đọt Shoot Max 500ml',unit:'chai',cost:33000,price:70000,stock:0,minStock:10},
-    {id:uid(),name:'Mát Bông Trái Amino Extra 500ml',unit:'chai',cost:38000,price:85000,stock:0,minStock:10},
-    {id:uid(),name:'Siêu To Khổng Lồ Fruit Max 500ml',unit:'chai',cost:40000,price:90000,stock:0,minStock:10}
+    {id:uid(),name:'Siêu Diệt Rong 400g',unit:'gói',cost:22000,price:45000,stock:0,minStock:10,labelStock:0,labelMin:0},
+    {id:uid(),name:'Kích Rễ Roots Extra 500ml',unit:'chai',cost:35000,price:75000,stock:0,minStock:10,labelStock:0,labelMin:0},
+    {id:uid(),name:'Phóng Đọt Shoot Max 500ml',unit:'chai',cost:33000,price:70000,stock:0,minStock:10,labelStock:0,labelMin:0},
+    {id:uid(),name:'Mát Bông Trái Amino Extra 500ml',unit:'chai',cost:38000,price:85000,stock:0,minStock:10,labelStock:0,labelMin:0},
+    {id:uid(),name:'Siêu To Khổng Lồ Fruit Max 500ml',unit:'chai',cost:40000,price:90000,stock:0,minStock:10,labelStock:0,labelMin:0}
   ];
 }
 /* ================= DIEU HUONG & PHIEN DANG NHAP ================= */
 const isOwner = () => me && me.role==='admin';
-const isAccountant = () => me && me.role==='accountant';
-const canInvoice = () => isOwner() || isAccountant();
-function roleLabel(r){ return r==='admin'?'Quản lý':(r==='accountant'?'Kế toán':'Bán hàng'); }
+function roleLabel(r){ return r==='admin'?'Quản lý':'Bán hàng'; }
 function setChrome(){
   const on = !!me;
   $('nav').style.display = on? 'flex':'none';
-  $('fab').style.display = on && !isAccountant()? 'block':'none';
-  const showFor = {dash:['admin','sale'], orders:['admin','sale'], cust:['admin','sale'], stock:['admin','sale'], invoice:['admin','accountant'], admin:['admin']};
+  $('fab').style.display = on? 'block':'none';
+  const showFor = {dash:['admin','sale'], orders:['admin','sale'], cust:['admin','sale'], stock:['admin','sale'], admin:['admin']};
   Object.keys(showFor).forEach(t=>{ const b = document.querySelector("[data-t='"+t+"']");
     if(b) b.style.display = (me && showFor[t].includes(me.role))? '' : 'none'; });
   $('lockbtn').textContent = me? ('⎋ Thoát ('+me.name+')') : ''; $('lockbtn').style.display = me? 'block':'none';
+  $('helpbtn').style.display = me? 'block':'none';
 }
 function boot(){
+  window.__appBooted = true;
   setChrome();
   if(!me) renderLanding();
-  else { if(me.role==='sale' && (tab==='admin'||tab==='invoice')) tab='dash'; if(me.role==='accountant') tab='invoice'; render(); }
+  else { if(me.role==='sale' && tab==='admin') tab='dash'; render(); }
 }
 function renderLanding(){
   $('view').innerHTML = '<div style="text-align:center;margin-top:26px">'
@@ -231,17 +231,27 @@ function renderLanding(){
   +'<div class="tiles">'
   +'<button class="tile ql" onclick="enterSection(\'admin\')"><span class="big">🛡️</span><h2>QUẢN LÝ</h2><p>Toàn quyền vận hành: kho, nhập hàng, đơn hàng, thu chi, công nợ, báo cáo</p></button>'
   +'<button class="tile bh" onclick="enterSection(\'sale\')"><span class="big">🛒</span><h2>BÁN HÀNG</h2><p>Chọn hàng hóa · thêm khách · lên đơn · báo giá · theo dõi hoa hồng</p></button>'
-  +'<button class="tile kt" onclick="enterSection(\'accountant\')"><span class="big">🧾</span><h2>KẾ TOÁN</h2><p>Hóa đơn đỏ đầu ra — đầu vào · đối chiếu VAT</p></button>'
   +'</div>';
 }
 function enterSection(role){
   if(role==='admin' && !db.users.some(u=>u.role==='admin')){ renderSetup(); return; }
   if(role==='sale' && !db.users.some(u=>u.role==='sale')){ alert('Chưa có tài khoản bán hàng nào. Vào mục QUẢN LÝ → Quản trị → Tài khoản đăng nhập để tạo cho nhân viên.'); return; }
-  if(role==='accountant' && !db.users.some(u=>u.role==='accountant')){ alert('Chưa có tài khoản kế toán nào. Vào mục QUẢN LÝ → Quản trị → Tài khoản đăng nhập để tạo.'); return; }
   renderLogin(role);
 }
 function togglePw(id,btn){ const i=$(id); if(i.type==='password'){ i.type='text'; btn.textContent='🙈'; } else { i.type='password'; btn.textContent='👁'; } }
 function userBtn(){ if(me && confirm('Đăng xuất tài khoản '+me.name+'?')) logout(); }
+function showHelp(){
+  const own = isOwner();
+  openSheet('<h2>❓ Hướng dẫn nhanh</h2><div class="detail">'
+  +'<p><b>🧾 Lên đơn — 3 bước:</b><br>1️⃣ Bấm nút <b>+</b> vàng, chọn <b>Kênh bán</b>.<br>2️⃣ Chọn sản phẩm + số lượng.<br>3️⃣ Đơn <b>Shopee/TikTok</b>: nhập "Tiền thu về" sàn báo (chưa biết thì để 0, đối soát xong sửa lại). Đơn <b>Trực tiếp/Facebook</b>: khách có mã thì gõ mã giảm giá. Bấm <b>Lưu</b>.</p>'
+  +'<p class="hint">Ship, chiết khấu tay, hoa hồng, phương thức thanh toán… nằm gọn trong nút "⚙ Tùy chọn thêm" — không cần đụng tới nếu không dùng.</p>'
+  +(own? '<p><b>📦 Kho:</b> "Nhập kho" mỗi khi đóng gói ra hàng thành phẩm — tồn nhãn tự trừ theo. In/đặt nhãn mới về thì khai báo ở Kho → Nhãn. Giá vốn tự tính bình quân khi nhập giá mới.</p>'
+  +'<p><b>💰 Tiền:</b> Đơn COD hoặc đơn sàn: khi tiền thật sự về, mở đơn → bấm "Đánh dấu ĐÃ THU". Số đang chờ hiện ở Tổng quan ("Tiền COD / Sàn đang chờ").</p>'
+  +'<p><b>🏷️ Khuyến mãi & mã:</b> Quản trị → Chương trình / chính sách CK. Có 4 kiểu: giảm %, giảm tiền, mua X tặng Y, freeship — mỗi chương trình gắn được 1 mã (VD ANVIFA10).</p>'
+  +'<p><b>💾 Sao lưu:</b> Quản trị → Dữ liệu → "Sao lưu (JSON)" — nên làm hàng tuần.</p>'
+  : '<p><b>📦 Kho:</b> tab Kho xem tồn từng sản phẩm và chương trình KM đang chạy để tư vấn khách.</p><p><b>📊 Tổng quan:</b> doanh thu, số đơn và hoa hồng của riêng bạn.</p>')
+  +'</div><button class="btn line" onclick="closeSheet()">Đóng</button>');
+}
 async function logout(){ me = null; try{ await dataApi.setSession(''); }catch(e){} setChrome(); renderLanding(); }
 function renderSetup(){
   $('view').innerHTML = '<div class="sec" style="margin-top:30px;padding:20px 16px">'
@@ -265,7 +275,7 @@ async function doSetup(){
 }
 function renderLogin(role){
   window._role = role;
-  const ttl = role==='admin'? '🛡️ Đăng nhập QUẢN LÝ' : (role==='accountant'? '🧾 Đăng nhập KẾ TOÁN' : '🛒 Đăng nhập BÁN HÀNG');
+  const ttl = role==='admin'? '🛡️ Đăng nhập QUẢN LÝ' : '🛒 Đăng nhập BÁN HÀNG';
   $('view').innerHTML = '<div class="sec" style="margin-top:30px;padding:22px 16px">'
   +'<h2 style="color:var(--green);font-size:17px;text-align:center">'+ttl+'</h2>'
   +'<label>Tên đăng nhập (ID)</label><input id="lg_user" autocapitalize="off">'
@@ -280,43 +290,61 @@ async function doLogin(){
   if(byName.pass!==hp(p)){ alert('Mật khẩu không đúng cho ID "'+u+'". Bấm 👁 để kiểm tra lại ký tự đã gõ.'); return; }
   const usr = byName;
   if(window._role && usr.role!==window._role){
-    const nameOf = r => r==='admin'?'QUẢN LÝ':(r==='accountant'?'KẾ TOÁN':'BÁN HÀNG');
+    const nameOf = r => r==='admin'?'QUẢN LÝ':'BÁN HÀNG';
     alert('Tài khoản này thuộc mục '+nameOf(usr.role)+'.'); return;
   }
   me = usr; try{ await dataApi.setSession(usr.id); }catch(e){}
   tab = 'dash'; boot();
 }
 function go(t){ if(!me) return;
-  if(me.role==='sale' && (t==='admin'||t==='invoice')) return;
-  if(me.role==='accountant' && t!=='invoice') return;
+  if(me.role==='sale' && t==='admin') return;
   tab = t; document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on', b.dataset.t===t)); render(); window.scrollTo(0,0); }
 function fabClick(){
   if(tab==='dash'||tab==='orders'){ if(window._ordView==='quote') formQuote(); else formOrder(); }
   else if(tab==='cust') formCustomer();
-  else if(tab==='stock'){ const sv=window._stockView||'ton'; if(sv==='ncc') formSupplier(); else if(sv==='kk') formAdjust(); else formEntry(); }
-  else if(tab==='invoice') formVatIn();
+  else if(tab==='stock'){ if(!isOwner()) return; const sv=window._stockView||'ton'; if(sv==='ncc') formSupplier(); else if(sv==='kk') formAdjust(); else if(sv==='nhan') formLabelEntry(''); else formEntry(); }
   else (isOwner()? formStaff() : formOrder());
 }
 function openSheet(html){ $('sheet').innerHTML = html; $('sheet').style.display='block'; $('ovl').style.display='block'; }
 function closeSheet(){ $('sheet').style.display='none'; $('ovl').style.display='none'; }
 function render(){
   if(!db || !me) return;
+  $('fab').style.display = (tab==='stock' && !isOwner())? 'none' : 'block';
   if(tab==='dash') renderDash();
   else if(tab==='orders') renderOrders();
   else if(tab==='cust') renderCust();
   else if(tab==='stock') renderStock();
-  else if(tab==='invoice') renderInvoices();
   else renderAdmin();
 }
 /* ================= TINH TOAN DON HANG ================= */
 function orderSubtotal(o){ return o.items.reduce((s,it)=>s+it.qty*it.price,0); }
+// Tinh so tien giam cua 1 chuong trinh KM tren don: items = [{qty, price}]
+function promoDiscount(pr, items, sub){
+  if(!pr) return 0;
+  if(pr.type==='percent') return sub*pr.value/100;
+  if(pr.type==='amount') return pr.value;
+  if(pr.type==='gift'){
+    const X = +pr.buyX||0, Y = +pr.giftY||0; if(X<=0||Y<=0||!items.length) return 0;
+    const units = items.reduce((s,it)=>s+it.qty,0);
+    const freeUnits = Math.floor(units/(X+Y))*Y;
+    if(!freeUnits) return 0;
+    return freeUnits * Math.min(...items.map(it=>it.price||0)); // tang san pham re nhat trong don
+  }
+  return 0; // freeship: khong tru tien hang (shop chiu phi ship qua o "Phi van chuyen")
+}
+function promoLabel(p){
+  if(p.type==='percent') return 'Giảm '+p.value+'%';
+  if(p.type==='amount') return 'Giảm '+fmt(p.value);
+  if(p.type==='gift') return 'Mua '+(p.buyX||'?')+' tặng '+(p.giftY||'?');
+  return '🚚 Miễn phí ship';
+}
 function orderDiscount(o){
   let d = 0, sub = orderSubtotal(o);
-  if(o.promoId){ const p = db.promos.find(x=>x.id===o.promoId); if(p) d += p.type==='percent'? sub*p.value/100 : p.value; }
+  if(o.promoId){ const p = db.promos.find(x=>x.id===o.promoId); if(p) d += promoDiscount(p, o.items, sub); }
   d += (o.extraDisc||0);
   return Math.min(d, sub);
 }
-function orderRevenue(o){ return orderSubtotal(o) - orderDiscount(o); }
+function orderRevenue(o){ if(isMktOrder(o)) return +o.net||0; return orderSubtotal(o) - orderDiscount(o); }
 function orderCOGS(o){ return o.items.reduce((s,it)=>s+it.qty*(it.cost||0),0); }
 function orderProfit(o){ return orderRevenue(o) - orderCOGS(o) - (o.ship||0) - (o.pack||0) - (o.comm||0); }
 function inRange(dstr, range){
@@ -332,8 +360,9 @@ function supplierDebt(supplierId){
   return db.entries.filter(e=>e.supplierId===supplierId && !e.paid).reduce((s,e)=>s+e.qty*e.cost,0);
 }
 function totalSupplierDebt(){ return db.entries.filter(e=>!e.paid).reduce((s,e)=>s+e.qty*e.cost,0); }
-function codPending(){ return db.orders.filter(o=>o.status==='xong' && o.payMethod==='cod' && o.payStatus!=='roi').reduce((s,o)=>s+orderRevenue(o),0); }
+function codPending(){ return db.orders.filter(o=>!CLOSED_NO_SALE.includes(o.status) && (o.payMethod==='cod'||o.payMethod==='san') && o.payStatus!=='roi').reduce((s,o)=>s+orderRevenue(o),0); }
 function lowStockList(){ return db.products.filter(p=>p.stock<=(p.minStock??10)); }
+function labelLowStockList(){ return db.products.filter(p=>(p.labelMin||0)>0 && (p.labelStock||0)<=p.labelMin); }
 /* ================= TONG QUAN ================= */
 function renderDash(){
   const own = isOwner();
@@ -354,7 +383,7 @@ function renderDash(){
     h += '<div class="kpi"><div class="l">Doanh thu</div><div class="v">'+fmt(rev)+'</div><div class="d">'+os.length+' đơn</div></div>';
     h += '<div class="kpi"><div class="l">Giá vốn hàng</div><div class="v">'+fmt(cogs)+'</div></div>';
     const cod = codPending();
-    h += '<div class="kpi'+(cod>0?' warn':'')+'"><div class="l">Tiền COD đang chờ</div><div class="v">'+fmt(cod)+'</div><div class="d">Đã giao, chưa đối soát</div></div>';
+    h += '<div class="kpi'+(cod>0?' warn':'')+'"><div class="l">Tiền COD / Sàn đang chờ</div><div class="v">'+fmt(cod)+'</div><div class="d">Chưa về tài khoản shop</div></div>';
     const debt = totalSupplierDebt();
     h += '<div class="kpi'+(debt>0?' warn':'')+'"><div class="l">Công nợ nhà cung cấp</div><div class="v">'+fmt(debt)+'</div></div>';
     h += '<div class="kpi"><div class="l">Đơn chờ giao / đang giao</div><div class="v">'+cntMoi+' / '+cntGiao+'</div></div>';
@@ -370,6 +399,12 @@ function renderDash(){
       + (low.length? '<table><tr><th>Sản phẩm</th><th class="r">Tồn</th><th class="r">Ngưỡng cảnh báo</th></tr>'
         + low.map(p=>'<tr><td>'+esc(p.name)+'</td><td class="r neg">'+p.stock+'</td><td class="r">'+(p.minStock??10)+'</td></tr>').join('') + '</table>'
         : '<div class="empty">Không có sản phẩm nào dưới ngưỡng ✓</div>') + '</div>';
+    const lowLabel = labelLowStockList();
+    if(lowLabel.length){
+      h += '<div class="sec"><h3>🏷️ Cảnh báo nhãn sắp hết ('+lowLabel.length+')</h3>'
+        + '<table><tr><th>Sản phẩm</th><th class="r">Tồn nhãn</th><th class="r">Ngưỡng cảnh báo</th></tr>'
+        + lowLabel.map(p=>'<tr><td>'+esc(p.name)+'</td><td class="r neg">'+(p.labelStock||0)+'</td><td class="r">'+p.labelMin+'</td></tr>').join('') + '</table></div>';
+    }
     const byStaff = {};
     os.forEach(o=>{ const k=o.staffId||'none'; byStaff[k]=byStaff[k]||{rev:0,n:0,comm:0}; byStaff[k].rev+=orderRevenue(o); byStaff[k].n++; byStaff[k].comm+=(o.comm||0); });
     const maxRev = Math.max(1,...Object.values(byStaff).map(x=>x.rev));
@@ -421,7 +456,7 @@ function renderOrders(){
     const c = db.customers.find(x=>x.id===o.custId);
     return `<div class="list-item" onclick="viewOrder('${o.id}')">
       <div><div class="t">${o.code} · ${esc(c?c.name:'Khách lẻ')}</div>
-      <div class="s">${o.date.slice(0,10).split('-').reverse().join('/')} · ${o.items.length} SP ${o.vatNeed?'· <span class="tag vat">HĐ đỏ</span>':''} ${o.status==='xong'?('· <span class="tag '+(o.payStatus==='roi'?'thu':'chuathu')+'">'+(o.payStatus==='roi'?'Đã thu':'Chưa thu')+'</span>'):''}</div></div>
+      <div class="s">${o.date.slice(0,10).split('-').reverse().join('/')} · ${o.items.length} SP ${o.channel && o.channel!=='truc_tiep'?'· <span class="tag giao">'+(CHANNELS[o.channel]||'')+'</span> ':''}${!CLOSED_NO_SALE.includes(o.status)? (o.payMethod==='san'? (o.payStatus==='roi'? '· <span class="tag thu">💰 Sàn đã chuyển tiền</span>' : '· <span class="tag chuathu">⏳ Chờ sàn chuyển tiền</span>') : (o.payStatus==='roi'? '· <span class="tag thu">💰 Đã thanh toán</span>' : (o.status==='xong'? '· <span class="tag chuathu">Chưa thu tiền</span>':''))) : ''}</div></div>
       <div style="text-align:right"><div class="money">${fmt(orderRevenue(o))}</div><span class="tag ${TAGC[o.status]}">${STATUS[o.status]}</span></div>
     </div>`;}).join('') : '<div class="empty">Chưa có đơn hàng.<br>Bấm nút <b>+</b> vàng để tạo đơn đầu tiên.</div>' }</div>`;
   $('view').innerHTML = h;
@@ -435,23 +470,29 @@ function renderQuoteList(){
 }
 function formOrder(){
   if(!db.customers.length){ alert('Hãy thêm khách hàng trước (tab Khách).'); go('cust'); return; }
-  draft = {items:[{pid:db.products[0]?.id, qty:1}], custId:db.customers[0].id, staffId:(isOwner()? (db.staff[0]?.id||'') : (me.staffId||'')), promoId:'', extraDisc:0, ship:0, pack:0, commOverride:null, vatNeed:false, vatNo:'', note:'', date:today(), payMethod:'tienmat'};
+  draft = {items:[{pid:db.products[0]?.id, qty:1}], custId:db.customers[0].id, staffId:(isOwner()? (db.staff[0]?.id||'') : (me.staffId||'')), channel:'truc_tiep', net:'', promoId:'', promoCode:'', extraDisc:0, ship:0, pack:0, commOverride:null, note:'', date:today(), payMethod:'tienmat'};
   drawOrderForm();
 }
 function drawOrderForm(){
+  const isMkt = draft.channel==='shopee'||draft.channel==='tiktok';
   const sub = draft.items.reduce((s,it)=>{ const p = db.products.find(x=>x.id===it.pid); return s + (p? p.price*it.qty : 0);},0);
   let disc = 0;
-  if(draft.promoId){ const pr = db.promos.find(x=>x.id===draft.promoId); if(pr) disc += pr.type==='percent'? sub*pr.value/100 : pr.value; }
-  disc += (+draft.extraDisc||0); disc = Math.min(disc, sub);
+  const prSel = (!isMkt && draft.promoId)? db.promos.find(x=>x.id===draft.promoId) : null;
+  if(prSel) disc += promoDiscount(prSel, draft.items.map(it=>{ const p = db.products.find(x=>x.id===it.pid); return {qty:it.qty, price:p?p.price:0}; }), sub);
+  if(!isMkt) disc += (+draft.extraDisc||0);
+  disc = Math.min(disc, sub);
+  const net = +draft.net||0;
+  const revenue = isMkt? net : (sub-disc);
   const st = db.staff.find(s=>s.id===draft.staffId);
-  const autoComm = st ? Math.round((sub-disc)*st.pct/100) : 0;
+  const autoComm = st ? Math.round(revenue*st.pct/100) : 0;
   const comm = draft.commOverride!==null && draft.commOverride!=='' ? +draft.commOverride : autoComm;
+  const cogs = draft.items.reduce((s,it)=>{const p=db.products.find(x=>x.id===it.pid);return s+(p?p.cost*it.qty:0);},0);
   openSheet(`<h2>🧾 Tạo đơn hàng</h2>
-  <label>Ngày</label><input type="date" value="${draft.date}" onchange="draft.date=this.value">
+  <label>Kênh bán</label><select onchange="draft.channel=this.value;drawOrderForm()">${Object.entries(CHANNELS).map(([k,v])=>`<option value="${k}" ${draft.channel===k?'selected':''}>${v}</option>`).join('')}</select>
+  ${isMkt? '<div class="hint">🛒 Đơn '+CHANNELS[draft.channel]+': sàn đã tự tính phí ship, phí sàn, voucher… — chỉ cần chọn SẢN PHẨM (để trừ kho) và nhập TIỀN THU VỀ mà sàn báo. Chưa biết số chính xác thì để 0, sau khi đối soát Quản lý sửa lại trong chi tiết đơn. Mẹo: tạo 1 khách chung tên "Khách Shopee"/"Khách TikTok" nếu không cần lưu từng người.</div>':''}
   <div class="row2"><div><label>Khách hàng</label><select onchange="draft.custId=this.value">
     ${db.customers.map(c=>`<option value="${c.id}" ${c.id===draft.custId?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
-  <div><label>Nhân viên sale</label><select ${isOwner()?'':'disabled'} onchange="draft.staffId=this.value;draft.commOverride=null;drawOrderForm()">
-    <option value="">— Không —</option>${db.staff.map(s=>`<option value="${s.id}" ${s.id===draft.staffId?'selected':''}>${esc(s.name)} (${s.pct}%)</option>`).join('')}</select></div></div>
+  <div><label>Ngày</label><input type="date" value="${draft.date}" onchange="draft.date=this.value"></div></div>
   <label>Sản phẩm</label>
   ${draft.items.map((it,i)=>{ const p = db.products.find(x=>x.id===it.pid);
     return `<div class="row3" style="margin-bottom:6px">
@@ -460,74 +501,104 @@ function drawOrderForm(){
     <div style="font-size:12px;padding-bottom:12px;white-space:nowrap">${p?fmt(p.price*it.qty):''}</div>
     <button class="xdel" onclick="draft.items.splice(${i},1);drawOrderForm()">✕</button></div>`;}).join('')}
   <button class="btn sm line" onclick="draft.items.push({pid:db.products[0].id,qty:1});drawOrderForm()">+ Thêm sản phẩm</button>
-  <div class="row2"><div><label>Chương trình KM</label><select onchange="draft.promoId=this.value;drawOrderForm()">
-    <option value="">— Không —</option>${db.promos.filter(p=>p.active).map(p=>`<option value="${p.id}" ${p.id===draft.promoId?'selected':''}>${esc(p.name)}</option>`).join('')}</select></div>
-  <div><label>Chiết khấu thêm (đ)</label><input type="number" value="${draft.extraDisc}" onchange="draft.extraDisc=+this.value||0;drawOrderForm()"></div></div>
+  ${isMkt? `<label>💰 Tiền thu về từ sàn (đ) — số sàn báo cho đơn này</label><input type="number" value="${draft.net}" onchange="draft.net=this.value;drawOrderForm()" placeholder="Xem ở Shopee/TikTok Seller: doanh thu ước tính của đơn">`
+  : `<label>Mã giảm giá (nếu khách dùng)</label><input value="${esc(draft.promoCode||'')}" placeholder="VD: ANVIFA10 — bỏ trống nếu không có" onchange="applyPromoCode(this.value)">
+  ${prSel && prSel.type==='freeship'? '<div class="hint">🚚 Đơn FREESHIP — không trừ tiền hàng; shop chịu phí ship, điền ô "Phí vận chuyển" trong Tùy chọn thêm để lợi nhuận trừ đúng.</div>':''}
+  ${prSel && prSel.type==='gift'? '<div class="hint">🎁 '+promoLabel(prSel)+': nhập đủ CẢ số tặng vào phần Sản phẩm (VD mua '+prSel.buyX+' tặng '+prSel.giftY+' thì nhập '+(prSel.buyX+prSel.giftY)+') — hệ thống tự trừ tiền '+prSel.giftY+' sản phẩm rẻ nhất.</div>':''}`}
+  <button class="btn sm line" onclick="window._ordAdv=!window._ordAdv;drawOrderForm()">${window._ordAdv?'▲ Ẩn bớt tùy chọn':'⚙ Tùy chọn thêm (nhân viên, ship, chiết khấu, hoa hồng…)'}</button>
+  ${window._ordAdv? `<div class="row2"><div><label>Nhân viên sale</label><select ${isOwner()?'':'disabled'} onchange="draft.staffId=this.value;draft.commOverride=null;drawOrderForm()">
+    <option value="">— Không —</option>${db.staff.map(s=>`<option value="${s.id}" ${s.id===draft.staffId?'selected':''}>${esc(s.name)}</option>`).join('')}</select></div>
+  <div><label>Hoa hồng sale (tự tính ${fmt(autoComm)})</label><input type="number" value="${comm}" onchange="draft.commOverride=this.value"></div></div>
+  ${isMkt? `<label>Mã giảm giá của shop (nếu khách dùng — chỉ để thống kê)</label><input value="${esc(draft.promoCode||'')}" placeholder="VD: ANVIFA10" onchange="draft.promoCode=this.value.trim().toUpperCase()">
+  <div class="hint">Voucher shop trên sàn đã bị trừ sẵn vào "tiền thu về" — ghi mã chỉ để thống kê, KHÔNG trừ tiền thêm lần nữa.</div>
+  <label>Phí đóng hàng (đ)</label><input type="number" value="${draft.pack}" onchange="draft.pack=+this.value||0;drawOrderForm()">`
+  : `<label>Chương trình KM (chọn tay nếu không dùng mã)</label><select onchange="draft.promoId=this.value;draft.promoCode='';drawOrderForm()">
+    <option value="">— Không —</option>${db.promos.filter(p=>p.active).map(p=>`<option value="${p.id}" ${p.id===draft.promoId?'selected':''}>${esc(p.name)}${p.code?' ['+esc(p.code)+']':''}</option>`).join('')}</select>
+  <label>Chiết khấu thêm (đ)</label><input type="number" value="${draft.extraDisc}" onchange="draft.extraDisc=+this.value||0;drawOrderForm()">
   <div class="row2"><div><label>Phí vận chuyển (đ)</label><input type="number" value="${draft.ship}" onchange="draft.ship=+this.value||0;drawOrderForm()"></div>
   <div><label>Phí đóng hàng (đ)</label><input type="number" value="${draft.pack}" onchange="draft.pack=+this.value||0;drawOrderForm()"></div></div>
-  <label>Hoa hồng sale (tự tính ${fmt(autoComm)} — sửa được)</label>
-  <input type="number" value="${comm}" onchange="draft.commOverride=this.value">
   <label>Phương thức thanh toán dự kiến</label>
-  <select onchange="draft.payMethod=this.value">${Object.entries(PAYM).map(([k,v])=>`<option value="${k}" ${draft.payMethod===k?'selected':''}>${v}</option>`).join('')}</select>
-  <label>Hóa đơn đỏ (VAT)</label>
-  <select onchange="draft.vatNeed=this.value==='1';drawOrderForm()"><option value="0" ${!draft.vatNeed?'selected':''}>Không cần</option><option value="1" ${draft.vatNeed?'selected':''}>Khách cần xuất HĐ đỏ</option></select>
-  ${draft.vatNeed?`<input style="margin-top:6px" placeholder="Số hóa đơn (điền sau khi xuất trên hệ thống HĐĐT)" value="${esc(draft.vatNo)}" onchange="draft.vatNo=this.value">`:''}
-  <label>Ghi chú</label><input value="${esc(draft.note)}" onchange="draft.note=this.value">
+  <select onchange="draft.payMethod=this.value">${Object.entries(PAYM).filter(([k])=>k!=='san').map(([k,v])=>`<option value="${k}" ${draft.payMethod===k?'selected':''}>${v}</option>`).join('')}</select>`}
+  <label>Ghi chú</label><input value="${esc(draft.note)}" onchange="draft.note=this.value">` : ''}
   <div style="margin-top:14px">
-    <div class="tot"><span>Tiền hàng</span><b>${fmt(sub)}</b></div>
+    ${isMkt? `<div class="tot"><span>Giá niêm yết (tham khảo)</span><b>${fmt(sub)}</b></div>
+    ${net>0? `<div class="tot"><span>Phí sàn & khấu trừ (ước tính)</span><b>− ${fmt(Math.max(0, sub-net))}</b></div>`:''}
+    <div class="tot grand"><span>Thực nhận từ sàn</span><b>${fmt(net)}</b></div>`
+    : `<div class="tot"><span>Tiền hàng</span><b>${fmt(sub)}</b></div>
     <div class="tot"><span>Chiết khấu</span><b>− ${fmt(disc)}</b></div>
-    <div class="tot grand"><span>Khách trả</span><b>${fmt(sub-disc)}</b></div>
-    ${isOwner()? '<div class="tot"><span>Lợi nhuận dự kiến</span><b>'+fmt(sub-disc-draft.items.reduce((s,it)=>{const p=db.products.find(x=>x.id===it.pid);return s+(p?p.cost*it.qty:0);},0)-draft.ship-draft.pack-comm)+'</b></div>' : ''}
+    <div class="tot grand"><span>Khách trả</span><b>${fmt(sub-disc)}</b></div>`}
+    ${isOwner()? '<div class="tot"><span>Lợi nhuận dự kiến</span><b>'+fmt(revenue-cogs-(isMkt?0:+draft.ship||0)-(+draft.pack||0)-comm)+'</b></div>' : ''}
   </div>
   <button class="btn" onclick="saveOrder()">Lưu đơn hàng</button>
   <button class="btn line" onclick="closeSheet()">Đóng</button>`);
 }
+function applyPromoCode(v){
+  v = (v||'').trim();
+  draft.promoCode = v;
+  if(v){
+    const pr = db.promos.find(p=>p.active && (p.code||'').toLowerCase()===v.toLowerCase());
+    if(pr) draft.promoId = pr.id;
+    else alert('Không tìm thấy mã "'+v+'".\nQuản lý cần tạo mã này trước ở: Quản trị → Chương trình / chính sách CK → ô "Mã giảm giá".');
+  }
+  drawOrderForm();
+}
 async function saveOrder(){
   if(!draft.items.length){ alert('Đơn chưa có sản phẩm'); return; }
+  const isMkt = draft.channel==='shopee'||draft.channel==='tiktok';
+  if(isMkt && !(+draft.net) && !confirm('Chưa nhập "Tiền thu về từ sàn". Lưu tạm 0đ và điền lại sau khi đối soát?')) return;
   for(const it of draft.items){ const p = db.products.find(x=>x.id===it.pid);
     if(p && p.stock < it.qty && !confirm(`"${p.name}" chỉ còn tồn ${p.stock}. Vẫn lưu đơn?`)) return; }
   const st = db.staff.find(s=>s.id===draft.staffId);
   const items = draft.items.map(it=>{ const p = db.products.find(x=>x.id===it.pid);
     return {pid:it.pid, name:p.name, qty:it.qty, price:p.price, cost:p.cost}; });
   const sub = items.reduce((s,it)=>s+it.qty*it.price,0);
-  let disc = 0; if(draft.promoId){ const pr = db.promos.find(x=>x.id===draft.promoId); if(pr) disc += pr.type==='percent'? sub*pr.value/100 : pr.value; }
-  disc += (+draft.extraDisc||0);
-  const autoComm = st ? Math.round((sub-Math.min(disc,sub))*st.pct/100) : 0;
+  let disc = 0; if(!isMkt && draft.promoId){ const pr = db.promos.find(x=>x.id===draft.promoId); if(pr) disc += promoDiscount(pr, items, sub); }
+  if(!isMkt) disc += (+draft.extraDisc||0);
+  const revenue = isMkt? (+draft.net||0) : (sub-Math.min(disc,sub));
+  const autoComm = st ? Math.round(revenue*st.pct/100) : 0;
   const comm = draft.commOverride!==null && draft.commOverride!=='' ? +draft.commOverride : autoComm;
   const o = {id:uid(), code:rndCode('DH'), date:draft.date, custId:draft.custId, staffId:draft.staffId,
-    items, promoId:draft.promoId, extraDisc:+draft.extraDisc||0, ship:+draft.ship||0, pack:+draft.pack||0, comm,
-    vatNeed:draft.vatNeed, vatNo:draft.vatNo, note:draft.note, status:'moi', payMethod:draft.payMethod||'tienmat', payStatus:'chua'};
+    channel:draft.channel||'truc_tiep', net:isMkt? (+draft.net||0) : 0,
+    items, promoId:isMkt?'':draft.promoId, promoCode:draft.promoCode||'', extraDisc:isMkt?0:(+draft.extraDisc||0), ship:isMkt?0:(+draft.ship||0), pack:+draft.pack||0, comm,
+    note:draft.note, status:'moi', payMethod:isMkt?'san':(draft.payMethod||'tienmat'), payStatus:'chua'};
   items.forEach(it=>{ const p = db.products.find(x=>x.id===it.pid); if(p) p.stock -= it.qty; });
   db.orders.push(o); await saveRec('orders', o); await saveCatalog(); closeSheet(); go('orders');
 }
 function viewOrder(id){
   const o = db.orders.find(x=>x.id===id); if(!o) return;
-  if(!isOwner() && !isAccountant() && o.staffId!==me.staffId){ alert('Đơn này thuộc nhân viên khác.'); return; }
+  if(!isOwner() && o.staffId!==me.staffId){ alert('Đơn này thuộc nhân viên khác.'); return; }
   const c = db.customers.find(x=>x.id===o.custId), st = db.staff.find(x=>x.id===o.staffId);
-  openSheet(`<h2>${o.code} <span class="tag ${TAGC[o.status]}">${STATUS[o.status]}</span></h2>
+  const mkt = isMktOrder(o);
+  openSheet(`<h2>${o.code} <span class="tag ${TAGC[o.status]}">${STATUS[o.status]}</span>${o.channel && o.channel!=='truc_tiep'?` <span class="tag giao">${CHANNELS[o.channel]||''}</span>`:''}</h2>
   <div class="detail">
   <p><b>Khách:</b> ${esc(c?c.name+' · '+c.phone:'—')}<br><b>Địa chỉ:</b> ${esc(c?c.address:'—')}<br>
   <b>Ngày:</b> ${o.date.slice(0,10).split('-').reverse().join('/')} · <b>Sale:</b> ${esc(st?st.name:'—')}</p>
   <table><tr><th>Sản phẩm</th><th class="r">SL</th><th class="r">Thành tiền</th></tr>
   ${o.items.map(it=>`<tr><td>${esc(it.name)}</td><td class="r">${it.qty}</td><td class="r">${fmt(it.qty*it.price)}</td></tr>`).join('')}</table>
   <div style="margin-top:10px">
-  <div class="tot"><span>Tiền hàng</span><b>${fmt(orderSubtotal(o))}</b></div>
+  ${mkt? `<div class="tot"><span>Giá niêm yết (tham khảo)</span><b>${fmt(orderSubtotal(o))}</b></div>
+  ${orderRevenue(o)>0?`<div class="tot"><span>Phí sàn & khấu trừ (ước tính)</span><b>− ${fmt(Math.max(0, orderSubtotal(o)-orderRevenue(o)))}</b></div>`:''}
+  ${o.promoCode?`<div class="tot"><span>Mã giảm giá shop (đã trừ trong tiền thu về)</span><b>${esc(o.promoCode)}</b></div>`:''}
+  <div class="tot grand"><span>Thực nhận từ sàn</span><b>${fmt(orderRevenue(o))}</b></div>
+  ${orderRevenue(o)<=0?'<div class="hint">⚠ Chưa nhập tiền thu về — lợi nhuận đơn đang tính tạm bằng 0đ doanh thu. Quản lý điền số ở ô bên dưới sau khi đối soát với sàn.</div>':''}`
+  : `<div class="tot"><span>Tiền hàng</span><b>${fmt(orderSubtotal(o))}</b></div>
   <div class="tot"><span>Chiết khấu</span><b>− ${fmt(orderDiscount(o))}</b></div>
-  <div class="tot grand"><span>Khách trả</span><b>${fmt(orderRevenue(o))}</b></div>
-  <div class="tot"><span>Ship ${fmt(o.ship)} · Gói ${fmt(o.pack)} · Hoa hồng ${fmt(o.comm)}</span></div>
+  ${o.promoCode?`<div class="tot"><span>Mã giảm giá</span><b>${esc(o.promoCode)}</b></div>`:''}
+  <div class="tot grand"><span>Khách trả</span><b>${fmt(orderRevenue(o))}</b></div>`}
+  <div class="tot"><span>${mkt?'':'Ship '+fmt(o.ship)+' · '}Gói ${fmt(o.pack)} · Hoa hồng ${fmt(o.comm)}</span></div>
   ${isOwner()? '<div class="tot"><span>Lợi nhuận đơn</span><b class="'+(orderProfit(o)<0?'neg':'')+'">'+fmt(orderProfit(o))+'</b></div>' : ''}
-  <div class="tot"><span>Thanh toán</span><b>${PAYM[o.payMethod]||'—'} · ${o.payStatus==='roi'?'Đã thu':'Chưa thu'}</b></div>
-  ${o.vatNeed?`<div class="tot"><span>Hóa đơn đỏ</span><b>${o.vatNo?('Đã xuất · số '+esc(o.vatNo)):'⚠ Chưa xuất'}</b></div>`:''}
+  <div class="tot"><span>Thanh toán</span><b>${PAYM[o.payMethod]||'—'} · ${o.payMethod==='san'? (o.payStatus==='roi'?'✓ Sàn đã chuyển tiền':'⏳ Chờ sàn chuyển tiền') : (o.payStatus==='roi'?'✓ Đã thanh toán':'Chưa thu')}</b></div>
   ${o.note?`<div class="tot"><span>Ghi chú: ${esc(o.note)}</span></div>`:''}
   </div></div>
   ${isOwner() && o.status==='moi' ? `<button class="btn gold" onclick="setStatus('${o.id}','giao')">✔ DUYỆT — chuyển sang Đang giao</button>` : ''}
   ${isOwner() && o.status==='giao' ? `<button class="btn line" style="border-color:#8a5000;color:#8a5000" onclick="if(confirm('Xác nhận khách KHÔNG NHẬN hàng, đơn bị hoàn về? Phí ship ${fmt(o.ship)} sẽ được ghi là lỗ.')) setStatus('${o.id}','hoan')">↩ Khách không nhận — Đánh dấu HOÀN HÀNG</button>` : ''}
   ${isOwner()? `<label>Trạng thái giao</label>
   <select onchange="setStatus('${o.id}',this.value)">${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${o.status===k?'selected':''}>${v}</option>`).join('')}</select>` : `<div class="hint">Đơn sẽ được Quản lý duyệt và cập nhật trạng thái giao hàng.</div>`}
-  ${isOwner()? `<label>Phương thức thanh toán</label>
-  <select onchange="setPayMethod('${o.id}',this.value)">${Object.entries(PAYM).map(([k,v])=>`<option value="${k}" ${o.payMethod===k?'selected':''}>${v}</option>`).join('')}</select>
-  ${o.payStatus!=='roi'? `<button class="btn gold" onclick="markPaid('${o.id}')">💰 Đánh dấu ĐÃ THU tiền</button>` : `<div class="hint">✓ Đã thu ${o.paidAt?('lúc '+new Date(o.paidAt).toLocaleString('vi-VN')):''}</div>`}` : ''}
-  ${o.vatNeed && canInvoice()?`<label>Số hóa đơn đỏ</label><input value="${esc(o.vatNo||'')}" onchange="setVatNo('${o.id}',this.value)">`:''}
+  ${isOwner() && mkt? `<label>💰 Tiền thu về từ sàn (đ) — sửa sau khi đối soát</label><input type="number" value="${o.net||0}" onchange="setNet('${o.id}',this.value)">
+  ${o.payStatus!=='roi'? `<div class="hint">⏳ Khách đã trả tiền cho sàn khi đặt — sàn sẽ chuyển về sau khi giao xong + đối soát. Chỉ bấm nút dưới khi tiền THẬT SỰ về tài khoản.</div><button class="btn gold" onclick="markPaid('${o.id}')">💰 Sàn ĐÃ CHUYỂN tiền về tài khoản</button>` : `<div class="hint">✓ Đã nhận tiền sàn ${o.paidAt?('lúc '+new Date(o.paidAt).toLocaleString('vi-VN')):''}</div><button class="btn sm line" onclick="undoPaid('${o.id}')">↩ Hủy đánh dấu (bấm nhầm)</button>`}` : ''}
+  ${isOwner() && !mkt? `<label>Phương thức thanh toán</label>
+  <select onchange="setPayMethod('${o.id}',this.value)">${Object.entries(PAYM).filter(([k])=>k!=='san').map(([k,v])=>`<option value="${k}" ${o.payMethod===k?'selected':''}>${v}</option>`).join('')}</select>
+  ${o.payStatus!=='roi'? `<button class="btn gold" onclick="markPaid('${o.id}')">💰 Đánh dấu ĐÃ THU tiền</button>` : `<div class="hint">✓ Đã thu ${o.paidAt?('lúc '+new Date(o.paidAt).toLocaleString('vi-VN')):''}</div><button class="btn sm line" onclick="undoPaid('${o.id}')">↩ Hủy đánh dấu (bấm nhầm)</button>`}` : ''}
   <button class="btn line" onclick="printOrder('${o.id}')">🖨️ In phiếu giao hàng / hóa đơn</button>
   ${isOwner()? '<button class="btn danger" onclick="delOrder(\''+o.id+'\')">Xóa đơn (hoàn tồn kho)</button>' : ''}
   <button class="btn line" onclick="closeSheet()">Đóng</button>`);
@@ -549,6 +620,16 @@ async function setStatus(id,s){
   o.status = s; await saveRec('orders',o); if(willClose||willOpen) await saveCatalog(); render();
 }
 async function setPayMethod(id,v){ if(!isOwner())return; const o=db.orders.find(x=>x.id===id); o.payMethod=v; await saveRec('orders',o); render(); }
+async function setNet(id,v){ if(!isOwner())return; const o=db.orders.find(x=>x.id===id); o.net=+v||0; await saveRec('orders',o); render(); }
+async function undoPaid(id){
+  if(!isOwner()) return;
+  if(!confirm('Hủy đánh dấu đã thu tiền? Khoản thu tương ứng trong sổ Thu - Chi cũng sẽ bị xóa.')) return;
+  const o = db.orders.find(x=>x.id===id); if(!o) return;
+  o.payStatus='chua'; o.paidAt=null; await saveRec('orders',o);
+  const inc = db.incomes.find(i=>i.orderId===o.id);
+  if(inc){ db.incomes = db.incomes.filter(i=>i.id!==inc.id); await delRec('incomes', inc.id); }
+  closeSheet(); render();
+}
 async function markPaid(id){
   if(!isOwner()) return;
   const o = db.orders.find(x=>x.id===id); if(!o) return;
@@ -559,7 +640,6 @@ async function markPaid(id){
   db.incomes.push(inc); await saveRec('incomes', inc);
   closeSheet(); render();
 }
-async function setVatNo(id,v){ if(!canInvoice()) return; const o=db.orders.find(x=>x.id===id); o.vatNo = v; await saveRec('orders',o); render(); }
 async function delOrder(id){
   if(!confirm('Xóa đơn này? Tồn kho sẽ được hoàn lại.')) return;
   const o = db.orders.find(x=>x.id===id);
@@ -630,7 +710,7 @@ function viewQuote(id){
 }
 async function convertQuote(id){
   const q = db.quotes.find(x=>x.id===id); if(!q) return;
-  draft = {items:q.items.map(it=>({pid:it.pid,qty:it.qty})), custId:q.custId, staffId:(isOwner()?(db.staff[0]?.id||''):(me.staffId||'')), promoId:'', extraDisc:0, ship:0, pack:0, commOverride:null, vatNeed:false, vatNo:'', note:'Từ báo giá '+q.code, date:today(), payMethod:'tienmat'};
+  draft = {items:q.items.map(it=>({pid:it.pid,qty:it.qty})), custId:q.custId, staffId:(isOwner()?(db.staff[0]?.id||''):(me.staffId||'')), channel:'truc_tiep', net:'', promoId:'', promoCode:'', extraDisc:0, ship:0, pack:0, commOverride:null, note:'Từ báo giá '+q.code, date:today(), payMethod:'tienmat'};
   q.converted = true; await saveRec('quotes', q);
   window._ordView='order'; drawOrderForm();
 }
@@ -650,12 +730,11 @@ function renderCust(){
   }).join('') : '<div class="empty">Chưa có khách hàng.<br>Bấm <b>+</b> để thêm nhà vườn đầu tiên.</div>'}</div>`;
 }
 function formCustomer(c){
-  c = c || {id:'',name:'',phone:'',address:'',tax:'',note:''};
+  c = c || {id:'',name:'',phone:'',address:'',note:''};
   openSheet(`<h2>${c.id?'Sửa':'➕ Thêm'} khách hàng</h2>
   <label>Tên khách / nhà vườn *</label><input id="f_name" value="${esc(c.name)}">
   <label>Số điện thoại / Zalo *</label><input id="f_phone" value="${esc(c.phone)}">
   <label>Địa chỉ đầy đủ (ấp/xã/huyện/tỉnh)</label><textarea id="f_addr" rows="2">${esc(c.address)}</textarea>
-  <label>Mã số thuế (nếu cần hóa đơn đỏ)</label><input id="f_tax" value="${esc(c.tax||'')}">
   <label>Ghi chú (trồng cây gì, diện tích…)</label><input id="f_note" value="${esc(c.note||'')}">
   <button class="btn" onclick="saveCust('${c.id}')">Lưu khách hàng</button>
   ${c.id && isOwner()?`<button class="btn danger" onclick="delCust('${c.id}')">Xóa khách</button>`:''}
@@ -664,7 +743,7 @@ function formCustomer(c){
 async function saveCust(id){
   const name = $('f_name').value.trim(), phone = $('f_phone').value.trim();
   if(!name||!phone){ alert('Cần tên và SĐT'); return; }
-  const data = {name, phone, address:$('f_addr').value.trim(), tax:$('f_tax').value.trim(), note:$('f_note').value.trim()};
+  const data = {name, phone, address:$('f_addr').value.trim(), note:$('f_note').value.trim()};
   if(id){ Object.assign(db.customers.find(x=>x.id===id), data); }
   else db.customers.push({id:uid(), ...data});
   await saveCatalog(); closeSheet(); render();
@@ -674,7 +753,7 @@ function viewCust(id){
   const c = db.customers.find(x=>x.id===id);
   const os = db.orders.filter(o=>o.custId===id).sort((a,b)=>b.date.localeCompare(a.date));
   openSheet(`<h2>${esc(c.name)}</h2>
-  <div class="detail"><p>📞 ${esc(c.phone)}<br>📍 ${esc(c.address)}${c.tax?`<br>MST: ${esc(c.tax)}`:''}${c.note?`<br>📝 ${esc(c.note)}`:''}</p></div>
+  <div class="detail"><p>📞 ${esc(c.phone)}<br>📍 ${esc(c.address)}${c.note?`<br>📝 ${esc(c.note)}`:''}</p></div>
   <h2 style="margin-top:14px;font-size:13px">Lịch sử mua hàng (${os.length} đơn)</h2>
   <table><tr><th>Đơn</th><th>Ngày</th><th class="r">Tiền</th></tr>
   ${os.map(o=>`<tr onclick="viewOrder('${o.id}')" style="cursor:pointer"><td>${o.code} <span class="tag ${TAGC[o.status]}">${STATUS[o.status]}</span></td><td>${o.date.slice(5,10).split('-').reverse().join('/')}</td><td class="r money">${fmt(orderRevenue(o))}</td></tr>`).join('')||'<tr><td colspan="3" class="empty">Chưa mua lần nào</td></tr>'}</table>
@@ -684,22 +763,29 @@ function viewCust(id){
 /* ================= KHO: TON KHO / NHAP / KIEM KHO / NCC ================= */
 function renderStock(){
   window._stockView = window._stockView || 'ton';
-  const v = window._stockView;
-  const chips = [['ton','Tồn kho'],['nhap','Lịch sử nhập'],['kk','Kiểm kho'],['ncc','Nhà cung cấp']];
-  let h = '<div class="chips">'+chips.map(([k,l])=>'<div class="chip '+(v===k?'on':'')+'" onclick="window._stockView=\''+k+'\';renderStock()">'+l+'</div>').join('')+'</div>';
+  let v = window._stockView;
+  const own = isOwner();
+  const chips = own? [['ton','Tồn kho'],['nhap','Lịch sử nhập'],['nhan','Nhãn'],['kk','Kiểm kho'],['ncc','Nhà cung cấp']] : [['ton','Tồn kho']];
+  if(!own && v!=='ton'){ v = window._stockView = 'ton'; }
+  let h = own? ('<div class="chips">'+chips.map(([k,l])=>'<div class="chip '+(v===k?'on':'')+'" onclick="window._stockView=\''+k+'\';renderStock()">'+l+'</div>').join('')+'</div>') : '';
   if(v==='ton') h += renderStockTon();
   else if(v==='nhap') h += renderStockNhap();
+  else if(v==='nhan') h += renderStockNhan();
   else if(v==='kk') h += renderStockKK();
   else h += renderStockNCC();
   $('view').innerHTML = h;
 }
 function renderStockTon(){
-  return `<div class="sec"><h3>Tồn kho ${isOwner()?'<span class="act" onclick="formProduct()">+ Thêm sản phẩm</span>':''}</h3>
-  <table><tr><th>Sản phẩm</th><th class="r">Tồn</th>${isOwner()?'<th class="r">Giá vốn</th>':''}<th class="r">Giá bán</th></tr>
-  ${db.products.map(p=>`<tr onclick="formProduct('${p.id}')" style="cursor:pointer">
+  const own = isOwner();
+  return `<div class="sec"><h3>Tồn kho ${own?'<span class="act" onclick="formProduct()">+ Thêm sản phẩm</span>':''}</h3>
+  <table><tr><th>Sản phẩm</th><th class="r">Tồn</th><th>KM / Chiết khấu</th>${own?'<th class="r">Tồn nhãn</th><th class="r">Giá vốn</th>':''}<th class="r">Giá bán</th>${own?'<th></th>':''}</tr>
+  ${db.products.map(p=>{ const lblLow = (p.labelMin||0)>0 && (p.labelStock||0)<=p.labelMin;
+    return `<tr onclick="${own?`formProduct('${p.id}')`:''}" style="${own?'cursor:pointer':''}">
     <td><b>${esc(p.name)}</b>${p.stock<=(p.minStock??10)?' <span class="tag chuathu">Sắp hết</span>':''}</td><td class="r" style="font-weight:800;color:${p.stock<=(p.minStock??10)?'var(--red)':'var(--green)'}">${p.stock}</td>
-    ${isOwner()?'<td class="r">'+fmt(p.cost)+'</td>':''}<td class="r money">${fmt(p.price)}</td></tr>`).join('')}</table></div>
-  <button class="btn gold" onclick="formEntry()">📥 Nhập kho</button>`;
+    <td>${p.promo?'<span class="tag moi">'+esc(p.promo)+'</span>':'<span class="s" style="color:var(--mut)">—</span>'}</td>
+    ${own?'<td class="r" style="font-weight:800;color:'+((p.labelStock||0)<0||lblLow?'var(--red)':'var(--ink)')+'">'+(p.labelStock||0)+(lblLow?' <span class="tag chuathu">Sắp hết</span>':'')+'</td><td class="r">'+fmt(p.cost)+'</td>':''}<td class="r money">${fmt(p.price)}</td>
+    ${own?`<td class="r"><button class="xdel" onclick="event.stopPropagation();formLabelEntry('','${p.id}')" title="Thêm nhãn">🏷️</button></td>`:''}</tr>`;}).join('')}</table></div>
+  ${own?'<button class="btn gold" onclick="formEntry()">📥 Nhập kho</button>':''}`;
 }
 function renderStockNhap(){
   return `<div class="sec"><h3>Lịch sử nhập kho</h3>
@@ -764,20 +850,25 @@ async function markEntryPaid(id){
 }
 function formProduct(id){
   if(!isOwner()){ alert('Chỉ chủ tài khoản được thêm/sửa sản phẩm.'); return; }
-  const p = db.products.find(x=>x.id===id) || {id:'',name:'',unit:'chai',cost:0,price:0,stock:0,minStock:10};
+  const p = db.products.find(x=>x.id===id) || {id:'',name:'',unit:'chai',cost:0,price:0,stock:0,minStock:10,labelStock:0,labelMin:0,promo:''};
   openSheet(`<h2>${id?'Sửa':'➕ Thêm'} sản phẩm</h2>
   <label>Tên sản phẩm *</label><input id="p_name" value="${esc(p.name)}">
   <div class="row2"><div><label>Đơn vị</label><input id="p_unit" value="${esc(p.unit)}"></div>
   <div><label>Tồn hiện tại</label><input id="p_stock" type="number" value="${p.stock}"></div></div>
-  <div class="row2"><div><label>Giá vốn (đ)</label><input id="p_cost" type="number" value="${p.cost}"></div>
+  <div class="row2"><div><label>Giá vốn bình quân (đ)</label><input id="p_cost" type="number" value="${p.cost}"></div>
   <div><label>Giá bán (đ)</label><input id="p_price" type="number" value="${p.price}"></div></div>
   <label>Ngưỡng cảnh báo tồn thấp</label><input id="p_min" type="number" value="${p.minStock??10}">
+  <label>Chương trình khuyến mãi / Chiết khấu</label><input id="p_promo" value="${esc(p.promo||'')}" placeholder="VD: Mua 3 tặng 1, hoặc Giảm 10% cho đại lý">
+  <div class="hint">Hiển thị ở cột "KM / Chiết khấu" trong Tồn kho, cả nhân viên bán hàng cũng xem được. Để trống nếu không có chương trình.</div>
+  <div class="row2"><div><label>Tồn nhãn hiện có</label><input id="p_labelstock" type="number" value="${p.labelStock||0}"></div>
+  <div><label>Ngưỡng cảnh báo nhãn (0 = tắt)</label><input id="p_labelmin" type="number" value="${p.labelMin||0}"></div></div>
+  <div class="hint">Tồn nhãn tự tăng khi bạn khai báo lần nhập nhãn mới (tab Kho → Nhãn), tự giảm khi Nhập kho sản phẩm này. Đặt ngưỡng cảnh báo &gt; 0 để được nhắc đặt/in thêm khi gần hết.</div>
   <button class="btn" onclick="saveProduct('${id||''}')">Lưu</button>
   ${id?`<button class="btn danger" onclick="delProduct('${id}')">Xóa sản phẩm</button>`:''}
   <button class="btn line" onclick="closeSheet()">Đóng</button>`);
 }
 async function saveProduct(id){
-  const d = {name:$('p_name').value.trim(), unit:$('p_unit').value.trim(), cost:+$('p_cost').value||0, price:+$('p_price').value||0, stock:+$('p_stock').value||0, minStock:+$('p_min').value||0};
+  const d = {name:$('p_name').value.trim(), unit:$('p_unit').value.trim(), cost:+$('p_cost').value||0, price:+$('p_price').value||0, stock:+$('p_stock').value||0, minStock:+$('p_min').value||0, promo:$('p_promo').value.trim(), labelStock:+$('p_labelstock').value||0, labelMin:+$('p_labelmin').value||0};
   if(!d.name){ alert('Cần tên sản phẩm'); return; }
   if(id) Object.assign(db.products.find(x=>x.id===id), d); else db.products.push({id:uid(), ...d});
   await saveCatalog(); closeSheet(); render();
@@ -796,7 +887,7 @@ function formEntry(editId){
   <div><label>NSX</label><input id="e_mfg" type="date" value="${e?(e.mfgDate||''):''}"></div></div>
   <label>HSD (hạn sử dụng)</label><input id="e_exp" type="date" value="${e?(e.expDate||''):''}">
   ${isOwner()?`<label>Tình trạng thanh toán NCC</label><select id="e_paid"><option value="0" ${!(e&&e.paid)?'selected':''}>Chưa thanh toán</option><option value="1" ${(e&&e.paid)?'selected':''}>Đã thanh toán</option></select>`:''}
-  ${isOwner()?'<div class="hint">Đơn giá nhập sẽ cập nhật thành giá vốn mới của sản phẩm (bỏ trống = giữ giá vốn cũ).</div>':''}
+  ${isOwner()?'<div class="hint">Giá vốn sản phẩm sẽ được tính <b>bình quân gia quyền</b>: (tồn cũ × giá vốn cũ + SL nhập × giá nhập mới) ÷ tổng tồn. Giá nhập lên xuống sẽ được "hòa" dần vào giá vốn, không ghi đè đột ngột. Bỏ trống = giữ giá vốn cũ. Các đơn ĐÃ bán vẫn giữ giá vốn tại thời điểm bán.</div>':''}
   <button class="btn" onclick="saveEntry('${editId||''}')">${e?'Lưu thay đổi':'Nhập kho'}</button>
   ${e && isOwner()?`<button class="btn danger" onclick="delEntry('${editId}')">Xóa phiếu nhập</button>`:''}
   <button class="btn line" onclick="closeSheet()">Đóng</button>`);
@@ -809,13 +900,24 @@ async function saveEntry(editId){
   const supplierId = $('e_sup')?.value||''; const paid = $('e_paid')? $('e_paid').value==='1' : true;
   if(editId){
     const en = db.entries.find(x=>x.id===editId), p = db.products.find(x=>x.id===en.pid);
-    if(p){ p.stock += (qty - en.qty); if(cost>0){ p.cost = cost; } }
+    if(p){ const delta = qty - en.qty; p.stock += delta; p.labelStock = (p.labelStock||0) - delta; }
     Object.assign(en, {date:$('e_date').value, qty, lotNo, mfgDate, expDate, paid});
     if(cost>0) en.cost = cost; if($('e_sup')) en.supplierId = supplierId;
+    // Sua phieu nhap: tinh lai gia von = binh quan gia quyen toan bo cac lan nhap cua san pham nay
+    if(p && cost>0){
+      const es = db.entries.filter(x=>x.pid===en.pid && x.cost>0);
+      const totQ = es.reduce((s,x)=>s+x.qty,0);
+      if(totQ>0) p.cost = Math.round(es.reduce((s,x)=>s+x.qty*x.cost,0)/totQ);
+    }
     await saveRec('entries', en); await saveCatalog();
   } else {
     const pid = $('e_pid').value, p = db.products.find(x=>x.id===pid);
-    p.stock += qty; if(cost>0) p.cost = cost;
+    // Gia von BINH QUAN GIA QUYEN: (ton cu x gia von cu + SL nhap x gia nhap moi) / tong ton
+    if(cost>0){
+      const oldStock = Math.max(0, p.stock||0);
+      p.cost = (oldStock>0 && p.cost>0)? Math.round((oldStock*p.cost + qty*cost)/(oldStock+qty)) : cost;
+    }
+    p.stock += qty; p.labelStock = (p.labelStock||0) - qty;
     const en = {id:uid(), date:$('e_date').value, pid, qty, cost:cost||p.cost, lotNo, mfgDate, expDate, supplierId, paid};
     db.entries.push(en); await saveRec('entries', en); await saveCatalog();
   }
@@ -823,11 +925,63 @@ async function saveEntry(editId){
 }
 async function delEntry(id){
   if(!isOwner()) return;
-  if(!confirm('Xóa phiếu nhập này? Số lượng đã cộng vào kho sẽ được trừ lại tương ứng.')) return;
+  if(!confirm('Xóa phiếu nhập này? Số lượng đã cộng vào kho sẽ được trừ lại tương ứng (và tồn nhãn được cộng lại tương ứng).')) return;
   const en = db.entries.find(x=>x.id===id); const p = db.products.find(x=>x.id===en.pid);
-  if(p) p.stock -= en.qty;
+  if(p){ p.stock -= en.qty; p.labelStock = (p.labelStock||0) + en.qty; }
   db.entries = db.entries.filter(x=>x.id!==id);
   await delRec('entries', id); await saveCatalog(); closeSheet(); render();
+}
+/* ================= NHAN (TON KHO NHAN IN, TRU TU DONG KHI NHAP KHO) ================= */
+function renderStockNhan(){
+  if(!isOwner()) return '<div class="sec"><div class="empty">🔒 Chỉ chủ tài khoản xem được tồn nhãn.</div></div>';
+  return `<div class="sec"><h3>Lịch sử nhập nhãn</h3>
+  <table><tr><th>Ngày in nhãn</th><th>Sản phẩm</th><th class="r">SL nhãn</th><th></th></tr>
+  ${db.labelEntries.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(le=>{ const p = db.products.find(x=>x.id===le.pid);
+    return `<tr onclick="formLabelEntry('${le.id}')" style="cursor:pointer"><td>${le.date.slice(5,10).split('-').reverse().join('/')}</td>
+    <td>${esc(p?p.name:'? (đã xóa)')}${p?'<div class="s">Tồn nhãn hiện có: '+(p.labelStock||0)+'</div>':''}</td>
+    <td class="r">+${le.qty}</td><td class="r"><button class="xdel" onclick="event.stopPropagation();delLabelEntry('${le.id}')">✕</button></td></tr>`;}).join('')
+    || '<tr><td colspan="4" class="empty">Chưa có lần nhập nhãn nào</td></tr>'}</table>
+  <div class="hint" style="padding:0 13px 12px">Bấm vào một dòng để sửa. Khi Nhập kho sản phẩm (đóng gói ra hàng thành phẩm), tồn nhãn tương ứng sẽ tự động trừ đi.</div></div>
+  <button class="btn gold" onclick="formLabelEntry('')">🏷️ Thêm nhãn</button>`;
+}
+function formLabelEntry(editId, presetPid){
+  if(!isOwner()){ alert('Chỉ chủ tài khoản được quản lý tồn nhãn.'); return; }
+  if(!db.products.length){ alert('Thêm sản phẩm trước.'); return; }
+  const le = editId? db.labelEntries.find(x=>x.id===editId) : null;
+  const pid = le? le.pid : (presetPid || db.products[0].id);
+  openSheet(`<h2>🏷️ ${le?'Sửa':'➕ Thêm'} nhãn nhập về</h2>
+  <label>Sản phẩm</label><select id="ln_pid" ${le?'disabled':''}>${db.products.map(p=>`<option value="${p.id}" ${p.id===pid?'selected':''}>${esc(p.name)} (tồn nhãn ${p.labelStock||0})</option>`).join('')}</select>
+  <label>Ngày in nhãn</label><input id="ln_date" type="date" value="${le?le.date:today()}">
+  <label>Số lượng nhãn *</label><input id="ln_qty" type="number" min="1" value="${le?le.qty:''}">
+  <button class="btn" onclick="saveLabelEntry('${editId||''}')">Lưu</button>
+  ${le?`<button class="btn danger" onclick="delLabelEntry('${editId}')">Xóa</button>`:''}
+  <button class="btn line" onclick="closeSheet()">Đóng</button>`);
+}
+async function saveLabelEntry(editId){
+  if(!isOwner()) return;
+  const qty = +$('ln_qty').value;
+  if(!qty || qty<1){ alert('Nhập số lượng nhãn'); return; }
+  const date = $('ln_date').value || today();
+  if(editId){
+    const le = db.labelEntries.find(x=>x.id===editId), p = db.products.find(x=>x.id===le.pid);
+    if(p) p.labelStock = (p.labelStock||0) + (qty - le.qty);
+    Object.assign(le, {date, qty});
+    await saveRec('labelEntries', le); await saveCatalog();
+  } else {
+    const pid = $('ln_pid').value, p = db.products.find(x=>x.id===pid);
+    if(p) p.labelStock = (p.labelStock||0) + qty;
+    const le = {id:uid(), date, pid, qty};
+    db.labelEntries.push(le); await saveRec('labelEntries', le); await saveCatalog();
+  }
+  closeSheet(); render();
+}
+async function delLabelEntry(id){
+  if(!isOwner()) return;
+  if(!confirm('Xóa lần nhập nhãn này? Tồn nhãn sẽ được trừ lại tương ứng.')) return;
+  const le = db.labelEntries.find(x=>x.id===id); const p = db.products.find(x=>x.id===le.pid);
+  if(p) p.labelStock = (p.labelStock||0) - le.qty;
+  db.labelEntries = db.labelEntries.filter(x=>x.id!==id);
+  await delRec('labelEntries', id); await saveCatalog(); closeSheet(); render();
 }
 /* ================= KIEM KHO / DIEU CHINH ================= */
 function formAdjust(){
@@ -851,83 +1005,17 @@ async function saveAdjust(){
   db.adjustments.push(adj); await saveRec('adjustments', adj); await saveCatalog();
   closeSheet(); render();
 }
-/* ================= HOA DON DO (DAU RA / DAU VAO) ================= */
-function renderInvoices(){
-  const pending = db.orders.filter(o=>o.vatNeed && !o.vatNo && !CLOSED_NO_SALE.includes(o.status));
-  const issued = db.orders.filter(o=>o.vatNeed && o.vatNo && !CLOSED_NO_SALE.includes(o.status));
-  let h = '<div class="hint" style="margin-bottom:2px">Dữ liệu liên kết trực tiếp với Đơn hàng và Kho — không nhập trùng.</div>';
-  h += '<div class="sec"><h3>🧾 Hóa đơn đỏ ĐẦU RA — chờ xuất ('+pending.length+')</h3>'
-    + (pending.map(o=>{ const c = db.customers.find(x=>x.id===o.custId);
-      return '<div class="list-item" onclick="viewOrder(\''+o.id+'\')"><div><div class="t">'+o.code+' · '+esc(c?c.name:'')+'</div><div class="s">MST: '+esc(c&&c.tax?c.tax:'⚠ chưa có MST')+' · '+fmt(orderRevenue(o))+'</div></div><span class="tag vat">Chờ xuất</span></div>';}).join('')
-      || '<div class="empty">Không có hóa đơn nào chờ xuất ✓</div>')
-    + '<div class="hint" style="padding:0 13px 12px">Ứng dụng theo dõi trạng thái HĐ đỏ. Việc phát hành HĐ điện tử vẫn thực hiện trên hệ thống HĐĐT đã đăng ký (Viettel, VNPT, Misa…), sau đó điền số HĐ vào đơn.</div></div>';
-  h += '<div class="sec"><h3>✅ Đã xuất hóa đơn đỏ ('+issued.length+')</h3>'
-    + (issued.map(o=>{ const c = db.customers.find(x=>x.id===o.custId);
-      return '<div class="list-item" onclick="viewOrder(\''+o.id+'\')"><div><div class="t">'+o.code+' · '+esc(c?c.name:'')+'</div><div class="s">Số HĐ: '+esc(o.vatNo)+' · '+fmt(orderRevenue(o))+'</div></div><span class="tag xong">Đã xuất</span></div>'; }).join('')
-      || '<div class="empty">Chưa có hóa đơn nào đã xuất</div>') + '</div>';
-  if(canInvoice()){
-    const vinM = db.vatIn.filter(v=>inRange(v.date,'month'));
-    const preM = vinM.reduce((s,v)=>s+v.pretax,0), vatM = vinM.reduce((s,v)=>s+v.vatAmt,0);
-    h += '<div class="sec"><h3>🧾 Hóa đơn đỏ ĐẦU VÀO <span class="act" onclick="formVatIn()">+ Thêm</span></h3>'
-      + '<div class="hint" style="padding:6px 13px 0">Tháng này: '+vinM.length+' hóa đơn · Trước thuế '+fmt(preM)+' · <b>VAT được khấu trừ '+fmt(vatM)+'</b></div>'
-      + '<table><tr><th>Ngày</th><th>Nhà cung cấp</th><th class="r">Trước thuế</th><th class="r">VAT</th><th></th></tr>'
-      + (db.vatIn.slice().reverse().slice(0,30).map(v=>'<tr><td>'+v.date.slice(5,10).split('-').reverse().join('/')+'</td><td><b>'+esc(v.supplier)+'</b><div class="s">Số HĐ '+esc(v.invoiceNo)+(v.taxCode?' · MST '+esc(v.taxCode):'')+(v.note?' · '+esc(v.note):'')+'</div></td><td class="r">'+fmt(v.pretax)+'</td><td class="r money">'+fmt(v.vatAmt)+'</td><td class="r"><button class="xdel" onclick="delVatIn(\''+v.id+'\')">✕</button></td></tr>').join('')
-        || '<tr><td colspan="5" class="empty">Chưa có hóa đơn đầu vào (mua nguyên liệu, bao bì, vận chuyển có VAT…)</td></tr>')
-      + '</table><div style="padding:0 13px 13px"><button class="btn sm line" onclick="exportVatCSV()">⬇ Xuất CSV cho kế toán</button></div></div>';
-  } else {
-    h += '<div class="sec"><div class="empty">🔒 Hóa đơn đầu vào chỉ Quản lý/Kế toán xem được.</div></div>';
-  }
-  $('view').innerHTML = h;
-}
-function formVatIn(){
-  if(!canInvoice()) return;
-  openSheet('<h2>➕ Hóa đơn đỏ đầu vào</h2>'
-  +'<label>Ngày hóa đơn</label><input id="vi_date" type="date" value="'+today()+'">'
-  +'<label>Nhà cung cấp *</label><input id="vi_sup" placeholder="VD: Cty bao bì X, xưởng gia công Y">'
-  +'<div class="row2"><div><label>MST nhà cung cấp</label><input id="vi_tax"></div>'
-  +'<div><label>Số hóa đơn *</label><input id="vi_no"></div></div>'
-  +'<div class="row2"><div><label>Giá trị trước thuế (đ) *</label><input id="vi_pre" type="number" oninput="calcVat()"></div>'
-  +'<div><label>Thuế suất</label><select id="vi_pct" onchange="calcVat()"><option value="10">10%</option><option value="8">8%</option><option value="5">5%</option><option value="0">0%</option></select></div></div>'
-  +'<div class="tot"><span>Tiền thuế VAT</span><b id="vi_vat">0 đ</b></div>'
-  +'<div class="tot grand"><span>Tổng thanh toán</span><b id="vi_tot">0 đ</b></div>'
-  +'<label>Ghi chú (mua gì)</label><input id="vi_note" placeholder="VD: 2.000 chai 500ml + tem nhãn">'
-  +'<button class="btn" onclick="saveVatIn()">Lưu hóa đơn</button>'
-  +'<button class="btn line" onclick="closeSheet()">Đóng</button>');
-}
-function calcVat(){
-  const pre = +$('vi_pre').value||0, pct = +$('vi_pct').value;
-  $('vi_vat').textContent = fmt(pre*pct/100); $('vi_tot').textContent = fmt(pre*(1+pct/100));
-}
-async function saveVatIn(){
-  const sup = $('vi_sup').value.trim(), no = $('vi_no').value.trim(), pre = +$('vi_pre').value;
-  if(!sup||!no||!pre){ alert('Cần nhà cung cấp, số HĐ và giá trị'); return; }
-  const pct = +$('vi_pct').value;
-  const v = {id:uid(), date:$('vi_date').value, supplier:sup, taxCode:$('vi_tax').value.trim(), invoiceNo:no,
-    pretax:pre, vatPct:pct, vatAmt:Math.round(pre*pct/100), total:Math.round(pre*(1+pct/100)), note:$('vi_note').value.trim()};
-  db.vatIn.push(v); await saveRec('vatIn', v); closeSheet(); render();
-}
-async function delVatIn(id){
-  if(!canInvoice()) return;
-  if(!confirm('Xóa hóa đơn đầu vào này?')) return;
-  db.vatIn = db.vatIn.filter(x=>x.id!==id); await delRec('vatIn', id); render();
-}
-function exportVatCSV(){
-  if(!canInvoice()) return;
-  const rows = [['Ngày','Nhà cung cấp','MST NCC','Số HĐ','Trước thuế','Thuế suất %','Tiền VAT','Tổng','Ghi chú']];
-  db.vatIn.forEach(v=>rows.push([v.date, v.supplier, v.taxCode, v.invoiceNo, v.pretax, v.vatPct, v.vatAmt, v.total, v.note]));
-  dl('ANVIFA-HDdauvao.csv', rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\n'), 'text/csv');
-}
 /* ================= QUAN TRI ================= */
 function renderAdmin(){
   const own = isOwner();
   let h = '';
-  if(!own) h += '<div class="sec"><div class="empty">🔒 Đang ở chế độ nhân viên.<br>Giá vốn, lợi nhuận, chi phí, hóa đơn đầu vào và sao lưu chỉ chủ tài khoản xem được.</div></div>';
+  if(!own) h += '<div class="sec"><div class="empty">🔒 Đang ở chế độ nhân viên.<br>Giá vốn, lợi nhuận, chi phí và sao lưu chỉ chủ tài khoản xem được.</div></div>';
   h += '<div class="sec"><h3>Nhân viên sale '+(own?'<span class="act" onclick="formStaff()">+ Thêm</span>':'')+'</h3>'
     + (db.staff.map(s=>{ const os = db.orders.filter(o=>o.staffId===s.id&&!CLOSED_NO_SALE.includes(o.status));
       return '<div class="list-item" onclick="formStaff(\''+s.id+'\')"><div><div class="t">'+esc(s.name)+'</div><div class="s">📞 '+esc(s.phone||'—')+' · Hoa hồng '+s.pct+'%</div></div><div style="text-align:right"><div class="money">'+fmt(os.reduce((x,o)=>x+orderRevenue(o),0))+'</div><div class="s">'+os.length+' đơn (tổng)</div></div></div>';}).join('')
       || '<div class="empty">Chưa có nhân viên</div>') + '</div>';
   h += '<div class="sec"><h3>Chương trình / chính sách CK '+(own?'<span class="act" onclick="formPromo()">+ Thêm</span>':'')+'</h3>'
-    + (db.promos.map(p=>'<div class="list-item" onclick="formPromo(\''+p.id+'\')"><div><div class="t">'+esc(p.name)+' '+(p.active?'':'<span class="tag huy">Tắt</span>')+'</div><div class="s">'+(p.type==='percent'? 'Giảm '+p.value+'%':'Giảm '+fmt(p.value))+(p.note?' · '+esc(p.note):'')+'</div></div></div>').join('')
+    + (db.promos.map(p=>'<div class="list-item" onclick="formPromo(\''+p.id+'\')"><div><div class="t">'+esc(p.name)+' '+(p.code?'<span class="tag moi">'+esc(p.code)+'</span> ':'')+(p.active?'':'<span class="tag huy">Tắt</span>')+'</div><div class="s">'+promoLabel(p)+(p.note?' · '+esc(p.note):'')+'</div></div></div>').join('')
       || '<div class="empty">Chưa có chương trình. VD: "Mua 3 tặng 1", "CK đại lý 15%"</div>') + '</div>';
   if(own){
     window._tcView = window._tcView || 'chi';
@@ -946,7 +1034,7 @@ function renderAdmin(){
     h += '</div>';
     h += '<div class="sec"><h3>👤 Tài khoản đăng nhập <span class="act" onclick="formUser()">+ Tạo tài khoản</span></h3>'
       + '<div class="hint" style="padding:6px 13px 0">Nhân viên đăng nhập bằng ID + mật khẩu do Quản lý tạo. Tài khoản bán hàng chỉ thấy đơn của mình, không thấy giá vốn/lợi nhuận/chi phí.</div>'
-      + (db.users.map(u=>'<div class="list-item" onclick="formUser(\''+u.id+'\')"><div><div class="t">'+esc(u.name)+' <span class="tag '+(u.role==='admin'?'xong':(u.role==='accountant'?'vat':'giao'))+'">'+roleLabel(u.role)+'</span></div><div class="s">ID: '+esc(u.username)+(u.staffId?(' · gắn NV: '+esc((db.staff.find(s=>s.id===u.staffId)||{}).name||'?')):'')+'</div></div></div>').join('')
+      + (db.users.map(u=>'<div class="list-item" onclick="formUser(\''+u.id+'\')"><div><div class="t">'+esc(u.name)+' <span class="tag '+(u.role==='admin'?'xong':'giao')+'">'+roleLabel(u.role)+'</span></div><div class="s">ID: '+esc(u.username)+(u.staffId?(' · gắn NV: '+esc((db.staff.find(s=>s.id===u.staffId)||{}).name||'?')):'')+'</div></div></div>').join('')
         || '<div class="empty">Chưa có tài khoản</div>') + '</div>';
     h += '<div class="sec"><h3>Dữ liệu</h3><div style="padding:4px 13px 13px">'
       + '<button class="btn sm line" onclick="backup()">⬇ Sao lưu (JSON)</button>'
@@ -976,20 +1064,39 @@ async function saveStaff(id){
 async function delStaff(id){ if(!confirm('Xóa nhân viên?')) return; db.staff = db.staff.filter(x=>x.id!==id); db.users = db.users.filter(u=>u.staffId!==id); await saveCatalog(); closeSheet(); render(); }
 function formPromo(id){
   if(!isOwner()){ alert('Chỉ chủ tài khoản được sửa chương trình.'); return; }
-  const p = db.promos.find(x=>x.id===id) || {id:'',name:'',type:'percent',value:10,note:'',active:true};
+  const p = db.promos.find(x=>x.id===id) || {id:'',name:'',type:'percent',value:10,buyX:5,giftY:1,code:'',note:'',active:true};
+  window._prDraft = p;
   openSheet(`<h2>${id?'Sửa':'➕ Thêm'} chương trình</h2>
   <label>Tên chương trình *</label><input id="pr_name" value="${esc(p.name)}" placeholder="VD: Chiết khấu đại lý cấp 1">
-  <div class="row2"><div><label>Kiểu giảm</label><select id="pr_type"><option value="percent" ${p.type==='percent'?'selected':''}>Theo %</option><option value="amount" ${p.type==='amount'?'selected':''}>Số tiền cố định</option></select></div>
-  <div><label>Giá trị</label><input id="pr_val" type="number" value="${p.value}"></div></div>
+  <label>Kiểu chương trình</label><select id="pr_type" onchange="drawPromoFields()">
+    <option value="percent" ${p.type==='percent'?'selected':''}>Giảm theo %</option>
+    <option value="amount" ${p.type==='amount'?'selected':''}>Giảm số tiền cố định</option>
+    <option value="gift" ${p.type==='gift'?'selected':''}>🎁 Mua X tặng Y sản phẩm</option>
+    <option value="freeship" ${p.type==='freeship'?'selected':''}>🚚 Miễn phí ship</option>
+  </select>
+  <div id="pr_fields"></div>
+  <label>Mã giảm giá (khách nhập khi mua — Shopee/TikTok/Facebook)</label><input id="pr_code" value="${esc(p.code||'')}" placeholder="VD: ANVIFA10 (bỏ trống nếu không dùng mã)" autocapitalize="characters">
   <label>Đang áp dụng?</label><select id="pr_act"><option value="1" ${p.active?'selected':''}>Bật</option><option value="0" ${!p.active?'selected':''}>Tắt</option></select>
   <label>Ghi chú chính sách</label><input id="pr_note" value="${esc(p.note)}" placeholder="VD: đơn từ 10 chai, áp dụng T7-T9">
   <button class="btn" onclick="savePromo('${id||''}')">Lưu</button>
   ${id?`<button class="btn danger" onclick="delPromo('${id}')">Xóa</button>`:''}
   <button class="btn line" onclick="closeSheet()">Đóng</button>`);
+  drawPromoFields();
+}
+function drawPromoFields(){
+  const t = $('pr_type').value, p = window._prDraft||{};
+  if(t==='percent') $('pr_fields').innerHTML = '<label>Giảm bao nhiêu %</label><input id="pr_val" type="number" value="'+(p.type==='percent'?(p.value||0):10)+'">';
+  else if(t==='amount') $('pr_fields').innerHTML = '<label>Giảm số tiền (đ)</label><input id="pr_val" type="number" value="'+(p.type==='amount'?(p.value||0):0)+'">';
+  else if(t==='gift') $('pr_fields').innerHTML = '<div class="row2"><div><label>Khách mua (X) *</label><input id="pr_buyx" type="number" min="1" value="'+(p.buyX||5)+'"></div><div><label>Tặng thêm (Y) *</label><input id="pr_gifty" type="number" min="1" value="'+(p.giftY||1)+'"></div></div><div class="hint">🎁 Khi lên đơn: nhập đủ cả X+Y sản phẩm vào đơn (để kho trừ đúng số thực xuất). Hệ thống tự trừ tiền Y sản phẩm — tính theo giá sản phẩm rẻ nhất trong đơn.</div>';
+  else $('pr_fields').innerHTML = '<div class="hint">🚚 Không trừ tiền hàng của khách. Đơn được ghi nhận dùng mã freeship — khi lên đơn nhớ điền "Phí vận chuyển" (shop chịu) để lợi nhuận trừ đúng.</div>';
 }
 async function savePromo(id){
-  const d = {name:$('pr_name').value.trim(), type:$('pr_type').value, value:+$('pr_val').value||0, active:$('pr_act').value==='1', note:$('pr_note').value.trim()};
+  const t = $('pr_type').value;
+  const d = {name:$('pr_name').value.trim(), type:t, value:0, buyX:0, giftY:0, code:$('pr_code').value.trim().toUpperCase(), active:$('pr_act').value==='1', note:$('pr_note').value.trim()};
+  if(t==='percent'||t==='amount'){ d.value = +$('pr_val').value||0; if(!d.value){ alert('Nhập giá trị giảm'); return; } }
+  if(t==='gift'){ d.buyX = +$('pr_buyx').value||0; d.giftY = +$('pr_gifty').value||0; if(d.buyX<1||d.giftY<1){ alert('Điền số lượng "Khách mua (X)" và "Tặng thêm (Y)"'); return; } }
   if(!d.name){ alert('Cần tên chương trình'); return; }
+  if(d.code && db.promos.some(x=>x.id!==id && (x.code||'').toUpperCase()===d.code)){ alert('Mã "'+d.code+'" đã được dùng cho chương trình khác.'); return; }
   if(id) Object.assign(db.promos.find(x=>x.id===id), d); else db.promos.push({id:uid(), ...d});
   await saveCatalog(); closeSheet(); render();
 }
@@ -1000,7 +1107,7 @@ function formExpense(){
   <label>Ngày</label><input id="x_date" type="date" value="${today()}">
   <label>Loại chi phí</label><select id="x_type" onchange="$('x_warn').style.display=this.value==='Chi nhập hàng'?'block':'none'"><option>Lương cứng nhân viên</option><option>Quảng cáo Facebook</option><option>Vật tư đóng gói</option><option>Thuê kho / mặt bằng</option><option>Chi nhập hàng</option><option>Khác</option></select>
   <div id="x_warn" class="hint" style="display:none;color:var(--red)">⚠ Giá vốn hàng bán đã được trừ tự động qua từng đơn hàng. Chỉ chọn mục này nếu khoản tiền KHÔNG liên quan hàng đã/sẽ bán (vd: hàng hỏng, mất mát), tránh trừ trùng vào lợi nhuận.</div>
-  <label>Phương thức</label><select id="x_method">${Object.entries(PAYM).filter(([k])=>k!=='cod').map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select>
+  <label>Phương thức</label><select id="x_method">${Object.entries(PAYM).filter(([k])=>k!=='cod'&&k!=='san').map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select>
   <label>Số tiền (đ) *</label><input id="x_amt" type="number">
   <label>Ghi chú</label><input id="x_note">
   <button class="btn" onclick="saveExpense()">Lưu chi phí</button>
@@ -1043,22 +1150,18 @@ function formUser(id){
     return;
   }
   openSheet('<h2>➕ Tạo tài khoản mới</h2>'
-  +'<label>Loại tài khoản *</label><select id="u_role" onchange="drawUserRole()"><option value="sale">Bán hàng — gắn 1 nhân viên sale</option><option value="accountant">Kế toán — quản lý hóa đơn đỏ</option></select>'
   +'<div id="u_staffwrap"></div>'
-  +'<label>Tên hiển thị *</label><input id="u_name" placeholder="VD: Kế toán Lan">'
-  +'<label>Tên đăng nhập (ID) *</label><input id="u_user" autocapitalize="off" placeholder="VD: ketoan01">'
+  +'<label>Tên hiển thị *</label><input id="u_name" placeholder="VD: Sale Lan">'
+  +'<label>Tên đăng nhập (ID) *</label><input id="u_user" autocapitalize="off" placeholder="VD: sale01">'
   +'<label>Mật khẩu *</label><div class="pwrap"><input id="u_pass" type="password"><button type="button" class="pweye" onclick="togglePw(&quot;u_pass&quot;,this)">👁</button></div>'
-  +'<div class="hint">Đưa ID + mật khẩu này cho người dùng. Họ đăng nhập ở đúng cổng (Bán hàng / Kế toán) trên màn hình chính.</div>'
+  +'<div class="hint">Đưa ID + mật khẩu này cho người dùng. Họ đăng nhập ở cổng Bán hàng trên màn hình chính.</div>'
   +'<button class="btn" onclick="saveUser(\'\')">Tạo tài khoản</button>'
   +'<button class="btn line" onclick="closeSheet()">Đóng</button>');
   drawUserRole();
 }
 function drawUserRole(){
-  const r = $('u_role').value;
-  if(r==='sale'){
-    if(!db.staff.length){ $('u_staffwrap').innerHTML = '<div class="hint">⚠ Chưa có nhân viên sale nào. Vào mục "Nhân viên sale" ở trên để thêm trước.</div>'; return; }
-    $('u_staffwrap').innerHTML = '<label>Gắn với nhân viên *</label><select id="u_staff">'+db.staff.map(s=>'<option value="'+s.id+'">'+esc(s.name)+' ('+s.pct+'%)</option>').join('')+'</select>';
-  } else { $('u_staffwrap').innerHTML = ''; }
+  if(!db.staff.length){ $('u_staffwrap').innerHTML = '<div class="hint">⚠ Chưa có nhân viên sale nào. Vào mục "Nhân viên sale" ở trên để thêm trước.</div>'; return; }
+  $('u_staffwrap').innerHTML = '<label>Gắn với nhân viên *</label><select id="u_staff">'+db.staff.map(s=>'<option value="'+s.id+'">'+esc(s.name)+' ('+s.pct+'%)</option>').join('')+'</select>';
 }
 async function saveUser(id){
   if(id){
@@ -1066,12 +1169,12 @@ async function saveUser(id){
     if(p){ if(p.length<4){ alert('Mật khẩu tối thiểu 4 ký tự'); return; } u.pass = hp(p); }
     await saveCatalog(); closeSheet(); render(); return;
   }
-  const role = $('u_role').value, name = $('u_name').value.trim(), un = $('u_user').value.trim().toLowerCase(), p = $('u_pass').value;
+  const role = 'sale', name = $('u_name').value.trim(), un = $('u_user').value.trim().toLowerCase(), p = $('u_pass').value;
   if(!name||!un||!p){ alert('Điền đủ thông tin'); return; }
   if(p.length<4){ alert('Mật khẩu tối thiểu 4 ký tự'); return; }
   if(db.users.some(x=>x.username===un)){ alert('ID này đã tồn tại'); return; }
-  let staffId = '';
-  if(role==='sale'){ if(!db.staff.length){ alert('Chưa có nhân viên sale để gắn.'); return; } staffId = $('u_staff').value; }
+  if(!db.staff.length){ alert('Chưa có nhân viên sale để gắn.'); return; }
+  const staffId = $('u_staff').value;
   db.users.push({id:uid(), username:un, pass:hp(p), role, name, staffId});
   await saveCatalog(); closeSheet(); render();
 }
@@ -1087,12 +1190,12 @@ function dl(name, content, type){
 }
 function exportCSV(){
   if(!isOwner()) return;
-  const rows = [['Mã đơn','Ngày','Khách','SĐT','Địa chỉ','Nhân viên','Sản phẩm','Tiền hàng','Chiết khấu','Khách trả','Giá vốn','Ship','Đóng gói','Hoa hồng','Lợi nhuận','Phương thức TT','Đã thu','HĐ đỏ','Số HĐ','Trạng thái']];
+  const rows = [['Mã đơn','Ngày','Kênh','Khách','SĐT','Địa chỉ','Nhân viên','Sản phẩm','Tiền hàng','Chiết khấu','Mã giảm giá','Khách trả / Thực nhận','Giá vốn','Ship','Đóng gói','Hoa hồng','Lợi nhuận','Phương thức TT','Đã thu','Trạng thái']];
   db.orders.forEach(o=>{
     const c = db.customers.find(x=>x.id===o.custId)||{}, st = db.staff.find(x=>x.id===o.staffId)||{};
-    rows.push([o.code, o.date.slice(0,10), c.name||'', c.phone||'', c.address||'', st.name||'',
-      o.items.map(i=>i.name+' x'+i.qty).join('; '), orderSubtotal(o), Math.round(orderDiscount(o)), Math.round(orderRevenue(o)),
-      orderCOGS(o), o.ship||0, o.pack||0, o.comm||0, Math.round(orderProfit(o)), PAYM[o.payMethod]||'', o.payStatus==='roi'?'Có':'Chưa', o.vatNeed?'Có':'', o.vatNo||'', STATUS[o.status]]);
+    rows.push([o.code, o.date.slice(0,10), CHANNELS[o.channel]||'Trực tiếp', c.name||'', c.phone||'', c.address||'', st.name||'',
+      o.items.map(i=>i.name+' x'+i.qty).join('; '), orderSubtotal(o), Math.round(orderDiscount(o)), o.promoCode||'', Math.round(orderRevenue(o)),
+      orderCOGS(o), o.ship||0, o.pack||0, o.comm||0, Math.round(orderProfit(o)), PAYM[o.payMethod]||'', o.payStatus==='roi'?'Có':'Chưa', STATUS[o.status]]);
   });
   dl('ANVIFA-donhang.csv', rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(',')).join('\n'), 'text/csv');
 }
@@ -1114,6 +1217,18 @@ function restore(inp){
   r.readAsText(f);
 }
 window.startApp = loadDB;
+window.__appBooted = false;
+setTimeout(function(){
+  if(window.__appBooted) return;
+  $('sync').textContent = 'lỗi kết nối!';
+  $('view').innerHTML = '<div class="sec" style="margin-top:20px;padding:20px 16px">'
+    + '<h2 style="color:var(--red);font-size:16px">⚠ Không tải được dữ liệu</h2>'
+    + '<div class="hint" style="margin-top:8px;line-height:1.7">Ứng dụng cần kết nối Internet để tải Firebase. Một vài nguyên nhân thường gặp:<br><br>'
+    + '<b>1.</b> Bạn đang mở trực tiếp file này bằng cách nhấp đúp (đường dẫn bắt đầu bằng <code>file://</code>) — trình duyệt sẽ CHẶN không cho tải. Cách khắc phục: đưa file này lên một website/hosting (VD: Firebase Hosting, GitHub Pages) rồi mở bằng đường dẫn <code>https://…</code>, hoặc nhờ người hỗ trợ kỹ thuật chạy 1 local server (VD: <code>python -m http.server</code>) rồi mở qua <code>http://localhost:...</code>.<br><br>'
+    + '<b>2.</b> Thiết bị đang mất mạng / mạng chặn tên miền <code>gstatic.com</code>, <code>firebaseio.com</code> (mạng công ty, trình chặn quảng cáo…). Thử tắt VPN/trình chặn quảng cáo hoặc đổi mạng khác.<br><br>'
+    + '<b>3.</b> Firebase project trong app đã bị xoá/đổi cấu hình.<br><br>'
+    + 'Sau khi khắc phục, hãy tải lại trang (kéo xuống để refresh hoặc bấm F5).</div></div>';
+}, 8000);
 </script>
 
 <!-- ======================================================================
@@ -1138,7 +1253,7 @@ const firebaseConfig = {
 };
 
 const useFirebase = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("PASTE");
-const RECORD_COLLS = ['orders','entries','quotes','adjustments','incomes','expenses','vatIn'];
+const RECORD_COLLS = ['orders','entries','quotes','adjustments','incomes','expenses','labelEntries'];
 
 if(useFirebase){
   const app = initializeApp(firebaseConfig);
