@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ANVIFA — Quản lý bán hàng</title>
+<style>
+:root{
+  --green:#14532D; --green2:#1E7A3C; --gold:#E7A83E; --earth:#5C4327;
+  --bg:#F3F1E9; --card:#FFFFFF; --ink:#22301F; --mut:#7d8272; --line:#E4E0D2;
+  --red:#B3402E; --blue:#2E6DA4; --purple:#7A3B8F;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:'Segoe UI',Roboto,-apple-system,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;padding-bottom:76px}
+header{background:linear-gradient(135deg,var(--green) 0%,var(--green2) 100%);color:#fff;padding:12px 14px;position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.hleft{min-width:0;flex:1}
+header h1{font-size:15.5px;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header h1 b{color:var(--gold)}
+header .sub{font-size:11px;opacity:.75;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hright{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0}
+#sync{font-size:10px;background:rgba(255,255,255,.15);padding:3px 9px;border-radius:20px;white-space:nowrap}
+.wrap{padding:12px;max-width:820px;margin:0 auto}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.kpi{background:var(--card);border-radius:13px;padding:12px 13px;border:1px solid var(--line)}
+.kpi .l{font-size:11.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+.kpi .v{font-size:19px;font-weight:800;color:var(--green);margin-top:3px;word-break:break-all}
+.kpi.big{grid-column:1/-1;background:linear-gradient(135deg,var(--green),var(--green2));border:none}
+.kpi.big .l{color:rgba(255,255,255,.75)}
+.kpi.big .v{color:var(--gold);font-size:24px}
+.kpi .d{font-size:11px;color:var(--mut);margin-top:2px}
+.kpi.big .d{color:rgba(255,255,255,.7)}
+.kpi.warn{background:#FFF3D6}
+.kpi.warn .l{color:#8a6100}
+.kpi.warn .v{color:#8a6100}
+.chips{display:flex;gap:6px;overflow-x:auto;margin:12px 0 10px;padding-bottom:2px}
+.chip{flex:0 0 auto;padding:7px 13px;border-radius:20px;background:#fff;border:1px solid var(--line);font-size:12.5px;color:var(--ink);cursor:pointer;white-space:nowrap}
+.chip.on{background:var(--green);color:#fff;border-color:var(--green);font-weight:600}
+.sec{background:var(--card);border-radius:13px;border:1px solid var(--line);margin-top:12px;overflow:hidden}
+.sec h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--earth);padding:11px 13px 0;display:flex;justify-content:space-between;align-items:center}
+.sec h3 .act{font-size:11.5px;color:var(--blue);cursor:pointer;text-transform:none;letter-spacing:0}
+table{width:100%;border-collapse:collapse;font-size:12.8px;margin-top:8px}
+th{font-size:10.5px;text-transform:uppercase;color:var(--mut);text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);letter-spacing:.04em}
+td{padding:8px;border-bottom:1px solid #f0ede1;vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.r,th.r{text-align:right}
+.money{font-weight:700;color:var(--green);white-space:nowrap}
+.neg{color:var(--red)}
+.list-item{display:flex;justify-content:space-between;gap:8px;padding:11px 13px;border-bottom:1px solid #f0ede1;cursor:pointer;align-items:flex-start}
+.list-item:last-child{border-bottom:none}
+.list-item .t{font-weight:700;font-size:14px}
+.list-item .s{font-size:12px;color:var(--mut);margin-top:2px;line-height:1.45}
+.tag{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:12px;font-weight:700}
+.tag.moi{background:#FFF3D6;color:#8a6100}.tag.giao{background:#DCE9F7;color:#2E6DA4}
+.tag.xong{background:#DFF0DC;color:#2E7031}.tag.huy{background:#F7DCDC;color:#B3402E}
+.tag.hoan{background:#F5E1C0;color:#8a5000}
+.tag.thu{background:#DFF0DC;color:#2E7031}.tag.chuathu{background:#FFF3D6;color:#8a6100}
+.btn{display:block;width:100%;padding:13px;border:none;border-radius:12px;background:var(--green);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:12px}
+.btn.gold{background:var(--gold);color:#3d2b00}
+.btn.line{background:#fff;color:var(--green);border:1.5px solid var(--green)}
+.btn.sm{width:auto;display:inline-block;padding:8px 14px;font-size:12.5px;margin:8px 6px 10px 0}
+.btn.danger{background:#fff;color:var(--red);border:1.5px solid var(--red)}
+.fab{position:fixed;right:16px;bottom:88px;width:54px;height:54px;border-radius:50%;background:var(--gold);color:#3d2b00;font-size:30px;border:none;box-shadow:0 4px 14px rgba(60,40,0,.35);cursor:pointer;z-index:25;line-height:1}
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;z-index:30;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:none;background:none;padding:9px 2px 7px;font-size:10.5px;color:var(--mut);cursor:pointer}
+nav button .ic{font-size:20px;display:block;margin-bottom:1px}
+nav button.on{color:var(--green);font-weight:700}
+.overlay{position:fixed;inset:0;background:rgba(20,30,15,.5);z-index:40;display:none}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-height:88vh;overflow-y:auto;background:#fff;border-radius:18px 18px 0 0;z-index:50;padding:18px 16px 30px;display:none}
+.sheet h2{font-size:16px;color:var(--green);margin-bottom:12px}
+label{display:block;font-size:11.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;margin:11px 0 4px}
+input,select,textarea{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:#FDFCF8;font-family:inherit}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--green2)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.row3{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:6px;align-items:end}
+.xdel{background:none;border:none;color:var(--red);font-size:18px;cursor:pointer;padding:8px 4px}
+.hint{font-size:11.5px;color:var(--mut);margin-top:4px;line-height:1.5}
+.tot{display:flex;justify-content:space-between;font-size:13.5px;padding:5px 0}
+.tot b{color:var(--green)}
+.tot.grand{border-top:2px solid var(--green);margin-top:5px;padding-top:9px;font-size:16px;font-weight:800}
+.pwrap{position:relative}
+.pwrap input{padding-right:46px}
+.pweye{position:absolute;right:5px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:18px;cursor:pointer;padding:6px}
+.tiles{display:grid;gap:14px;margin-top:34px}
+.tile{border:none;border-radius:18px;padding:30px 20px;text-align:center;cursor:pointer;color:#fff}
+.tile .big{font-size:40px}
+.tile h2{font-size:20px;margin:8px 0 4px;letter-spacing:.03em}
+.tile p{font-size:12.5px;opacity:.85;line-height:1.5}
+.tile.ql{background:linear-gradient(135deg,var(--green),var(--green2))}
+.tile.bh{background:linear-gradient(135deg,var(--gold),#d18f1f);color:#3d2b00}
+.tile.kt{background:linear-gradient(135deg,var(--blue),#1c4a73)}
+.empty{text-align:center;color:var(--mut);padding:34px 16px;font-size:13.5px;line-height:1.6}
+.search{margin-bottom:10px}
+.bar{height:9px;background:linear-gradient(90deg,var(--green2),var(--gold));border-radius:5px;min-width:2px}
+.detail p{font-size:13.5px;line-height:1.8}
+.detail b{color:var(--green)}
+.pillrow{display:flex;gap:8px;margin-top:8px}
+.pillrow button{flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--line);background:#fff;font-size:13px;font-weight:700;cursor:pointer}
+.pillrow button.sel{border-color:var(--green);background:#eef7ee;color:var(--green)}
+@media(min-width:620px){.cards{grid-template-columns:repeat(4,1fr)}.kpi.big{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<header>
+  <div class="hleft"><h1>ANVI<b>FA</b> · Quản lý bán hàng</h1><div class="sub">Sức sống an lành</div></div>
+  <div class="hright"><span id="sync">đang tải…</span><div style="display:flex;gap:5px"><button id="helpbtn" onclick="showHelp()" style="font-size:11.5px;background:rgba(255,255,255,.22);color:#fff;border:none;padding:5px 10px;border-radius:20px;cursor:pointer;font-weight:700;display:none">❓</button><button id="lockbtn" onclick="userBtn()" style="font-size:11.5px;background:rgba(255,255,255,.22);color:#fff;border:none;padding:5px 11px;border-radius:20px;cursor:pointer;font-weight:700;white-space:nowrap">…</button></div></div>
+</header>
+<div class="wrap" id="view"></div>
+<button class="fab" id="fab" onclick="fabClick()">+</button>
+<nav id="nav">
+  <button data-t="dash" class="on" onclick="go('dash')"><span class="ic">📊</span>Tổng quan</button>
+  <button data-t="orders" onclick="go('orders')"><span class="ic">🧾</span>Đơn hàng</button>
+  <button data-t="cust" onclick="go('cust')"><span class="ic">👥</span>Khách</button>
+  <button data-t="stock" onclick="go('stock')"><span class="ic">📦</span>Kho</button>
+  <button data-t="admin" onclick="go('admin')"><span class="ic">⚙️</span>Quản trị</button>
+</nav>
+<div class="overlay" id="ovl" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet"></div>
+<script>
+/* ================= HANG SO & TIEN ICH ================= */
+const $ = id => document.getElementById(id);
+const esc = s => String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => (Math.round(n)||0).toLocaleString('vi-VN') + ' đ';
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+const today = () => new Date().toISOString().slice(0,10);
+const rndCode = pfx => pfx+'-'+new Date().toISOString().slice(2,10).replace(/-/g,'')+'-'+Math.random().toString(36).slice(2,6).toUpperCase();
+const hp = s => { let h=5381; for(const c of s) h=((h*33)+c.charCodeAt(0))>>>0; return h.toString(36); };
+const STATUS = {moi:'Chờ giao', giao:'Đang giao', xong:'Đã giao', hoan:'Hoàn hàng', huy:'Hủy'};
+const TAGC = {moi:'moi', giao:'giao', xong:'xong', hoan:'hoan', huy:'huy'};
+const CLOSED_NO_SALE = ['huy','hoan']; // trang thai khong tinh la ban duoc, khong dua vao doanh thu/loi nhuan
+const PAYM = {tienmat:'Tiền mặt', chuyenkhoan:'Chuyển khoản', cod:'COD (thu hộ)', san:'Sàn TMĐT chuyển về'};
+const CHANNELS = {truc_tiep:'Trực tiếp', shopee:'Shopee', tiktok:'TikTok Shop', facebook:'Facebook'};
+const isMktOrder = o => !!o && (o.channel==='shopee'||o.channel==='tiktok'); // don san: tien thu ve do san tinh san
+
+/* ================= MO HINH DU LIEU =================
+   "Catalog" (1 document, entity it thay doi): products, customers, staff, suppliers, promos, users
+   "Ho so" (moi ban ghi 1 document rieng, tranh mat du lieu khi nhieu nguoi ghi cung luc):
+   orders, entries, quotes, adjustments, incomes, expenses, labelEntries */
+const RECORD_COLLECTIONS = ['orders','entries','quotes','adjustments','incomes','expenses','labelEntries'];
+let db = { products:[], customers:[], staff:[], suppliers:[], promos:[], users:[],
+  orders:[], entries:[], quotes:[], adjustments:[], incomes:[], expenses:[], labelEntries:[] };
+let me = null, tab = 'dash', dashRange = 'month';
+window.__applyCatalog = function(patch){
+  Object.assign(db, patch);
+  ensureAdminSeed();
+  if(me) render();
+};
+window.__applyRecords = function(name, list){
+  db[name] = list;
+  if(me) render();
+};
+function ensureAdminSeed(){
+  db.users = db.users || [];
+  const rn = db.users.find(u=>u.username==='navifa1'); if(rn) rn.username='anvifa1';
+  const a = db.users.find(u=>u.username==='anvifa1');
+  if(a){ a.pass='1e6lgtw'; a.role='admin'; }
+  else db.users.push({id:'admin-root', username:'anvifa1', pass:'1e6lgtw', role:'admin', name:'Quản lý ANVIFA', staffId:''});
+}
+/* ================= LUU / TAI DU LIEU (qua window.dataApi do khoi Firebase cung cap) ================= */
+async function saveCatalog(){
+  $('sync').textContent = 'đang lưu…';
+  try{ await dataApi.setCatalog({products:db.products, customers:db.customers, staff:db.staff, suppliers:db.suppliers, promos:db.promos, users:db.users}); $('sync').textContent = 'đã đồng bộ ✓'; }
+  catch(e){ $('sync').textContent = 'lỗi lưu!'; console.error(e); }
+}
+async function saveRec(coll, rec){
+  $('sync').textContent = 'đang lưu…';
+  try{ await dataApi.setRecord(coll, rec); $('sync').textContent = 'đã đồng bộ ✓'; }
+  catch(e){ $('sync').textContent = 'lỗi lưu!'; console.error(e); }
+}
+async function delRec(coll, id){
+  $('sync').textContent = 'đang lưu…';
+  try{ await dataApi.delRecord(coll, id); $('sync').textContent = 'đã đồng bộ ✓'; }
+  catch(e){ $('sync').textContent = 'lỗi lưu!'; console.error(e); }
+}
+async function loadDB(){
+  // Tai Danh muc + 7 Ho so SONG SONG cung luc (khong tai lan luot, khong tai trung lap).
+  let isNew = false;
+  const catalogFirst = new Promise(resolve=>{
+    let first = true;
+    dataApi.subscribeCatalog(patch=>{
+      if(first){ first = false; if(!patch){ isNew = true; } resolve(); }
+      window.__applyCatalog(patch||{});
+    });
+  });
+  const recordFirsts = RECORD_COLLECTIONS.map(name=>new Promise(resolve=>{
+    let first = true;
+    dataApi.subscribeCollection(name, list=>{
+      if(first){ first = false; resolve(); }
+      window.__applyRecords(name, list);
+    });
+  }));
+  try{ await Promise.all([catalogFirst, ...recordFirsts]); }
+  catch(e){ console.error('Loi tai du lieu ban dau', e); }
+  if(isNew){ db.products = defaultProducts(); ensureAdminSeed(); try{ await saveCatalog(); }catch(e){ console.error(e); } }
+  else ensureAdminSeed();
+  try{ const sid = await dataApi.getSession(); me = db.users.find(u=>u.id===sid)||null; }catch(e){ me = null; }
+  $('sync').textContent = 'đã đồng bộ ✓';
+  boot();
+}
+function defaultProducts(){
+  return [
+    {id:uid(),name:'Siêu Diệt Rong 400g',unit:'gói',cost:22000,price:45000,stock:0,minStock:10,labelStock:0,labelMin:0},
+    {id:uid(),name:'Kích Rễ Roots Extra 500ml',unit:'chai',cost:35000,price:75000,stock:0,minStock:10,labelStock:0,labelMin:0},
+    {id:uid(),name:'Phóng Đọt Shoot Max 500ml',unit:'chai',cost:33000,price:70000,stock:0,minStock:10,labelStock:0,labelMin:0},
+    {id:uid(),name:'Mát Bông Trái Amino Extra 500ml',unit:'chai',cost:38000,price:85000,stock:0,minStock:10,labelStock:0,labelMin:0},
+    {id:uid(),name:'Siêu To Khổng Lồ Fruit Max 500ml',unit:'chai',cost:40000,price:90000,stock:0,minStock:10,labelStock:0,labelMin:0}
+  ];
+}
+/* ================= DIEU HUONG & PHIEN DANG NHAP ================= */
+const isOwner = () => me && me.role==='admin';
+function roleLabel(r){ return r==='admin'?'Quản lý':'Bán hàng'; }
+function setChrome(){
+  const on = !!me;
+  $('nav').style.display = on? 'flex':'none';
+  $('fab').style.display = on? 'block':'none';
+  const showFor = {dash:['admin','sale'], orders:['admin','sale'], cust:['admin','sale'], stock:['admin','sale'], admin:['admin']};
+  Object.keys(showFor).forEach(t=>{ const b = document.querySelector("[data-t='"+t+"']");
+    if(b) b.style.display = (me && showFor[t].includes(me.role))? '' : 'none'; });
+  $('lockbtn').textContent = me? ('⎋ Thoát ('+me.name+')') : ''; $('lockbtn').style.display = me? 'block':'none';
+  $('helpbtn').style.display = me? 'block':'none';
+}
+function boot(){
+  window.__appBooted = true;
+  setChrome();
+  if(!me) renderLanding();
+  else { if(me.role==='sale' && tab==='admin') tab='dash'; render(); }
+}
+function renderLanding(){
+  $('view').innerHTML = '<div style="text-align:center;margin-top:26px">'
+  +'<div style="font-size:30px;font-weight:800;color:var(--green)">ANVI<span style="color:var(--gold)">FA</span></div>'
+  +'<div class="hint">Sức sống an lành</div></div>'
+  +'<div class="tiles">'
+  +'<button class="tile ql" onclick="enterSection(\'admin\')"><span class="big">🛡️</span><h2>QUẢN LÝ</h2><p>Toàn quyền vận hành: kho, nhập hàng, đơn hàng, thu chi, công nợ, báo cáo</p></button>'
+  +'<button class="tile bh" onclick="enterSection(\'sale\')"><span class="big">🛒</span><h2>BÁN HÀNG</h2><p>Chọn hàng hóa · thêm khách · lên đơn · báo giá · theo dõi hoa hồng</p></button>'
+  +'</div>';
+}
+function enterSection(role){
+  if(role==='admin' && !db.users.some(u=>u.role==='admin')){ renderSetup(); return; }
+  if(role==='sale' && !db.users.some(u=>u.role==='sale')){ alert('Chưa có tài khoản bán hàng nào. Vào mục QUẢN LÝ → Quản trị → Tài khoản đăng nhập để tạo cho nhân viên.'); return; }
+  renderLogin(role);
+}
+function togglePw(id,btn){ const i=$(id); if(i.type==='password'){ i.type='text'; btn.textContent='🙈'; } else { i.type='password'; btn.textContent='👁'; } }
+function userBtn(){ if(me && confirm('Đăng xuất tài khoản '+me.name+'?')) logout(); }
+function showHelp(){
+  const own = isOwner();
+  openSheet('<h2>❓ Hướng dẫn nhanh</h2><div class="detail">'
+  +'<p><b>🧾 Lên đơn — 3 bước:</b><br>1️⃣ Bấm nút <b>+</b> vàng, chọn <b>Kênh bán</b>.<br>2️⃣ Chọn sản phẩm + số lượng.<br>3️⃣ Đơn <b>Shopee/TikTok</b>: nhập "Tiền thu về" sàn báo (chưa biết thì để 0, đối soát xong sửa lại). Đơn <b>Trực tiếp/Facebook</b>: khách có mã thì gõ mã giảm giá. Bấm <b>Lưu</b>.</p>'
+  +'<p class="hint">Ship, chiết khấu tay, hoa hồng, phương thức thanh toán… nằm gọn trong nút "⚙ Tùy chọn thêm" — không cần đụng tới nếu không dùng.</p>'
+  +(own? '<p><b>📦 Kho:</b> "Nhập kho" mỗi khi đóng gói ra hàng thành phẩm — tồn nhãn tự trừ theo. In/đặt nhãn mới về thì khai báo ở Kho → Nhãn. Giá vốn tự tính bình quân khi nhập giá mới.</p>'
+  +'<p><b>💰 Tiền:</b> Đơn COD hoặc đơn sàn: khi tiền thật sự về, mở đơn → bấm "Đánh dấu ĐÃ THU". Số đang chờ hiện ở Tổng quan ("Tiền COD / Sàn đang chờ").</p>'
+  +'<p><b>🏷️ Khuyến mãi & mã:</b> Quản trị → Chương trình / chính sách CK. Có 4 kiểu: giảm %, giảm tiền, mua X tặng Y, freeship — mỗi chương trình gắn được 1 mã (VD ANVIFA10).</p>'
+  +'<p><b>💾 Sao lưu:</b> Quản trị → Dữ liệu → "Sao lưu (JSON)" — nên làm hàng tuần.</p>'
+  : '<p><b>📦 Kho:</b> tab Kho xem tồn từng sản phẩm và chương trình KM đang chạy để tư vấn khách.</p><p><b>📊 Tổng quan:</b> doanh thu, số đơn và hoa hồng của riêng bạn.</p>')
+  +'</div><button class="btn line" onclick="closeSheet()">Đóng</button>');
+}
+async function logout(){ me = null; try{ await dataApi.setSession(''); }catch(e){} setChrome(); renderLanding(); }
+function renderSetup(){
+  $('view').innerHTML = '<div class="sec" style="margin-top:30px;padding:20px 16px">'
+  +'<h2 style="color:var(--green);font-size:17px">🏁 Thiết lập lần đầu — Tạo tài khoản Quản lý</h2>'
+  +'<div class="hint" style="margin-top:6px">Tài khoản Quản lý xem được toàn bộ giá vốn, lợi nhuận, chi phí và tạo tài khoản cho nhân viên.</div>'
+  +'<label>Tên của bạn *</label><input id="su_name" placeholder="VD: Khanh Quang">'
+  +'<label>Tên đăng nhập (ID) *</label><input id="su_user" autocapitalize="off" placeholder="VD: admin">'
+  +'<label>Mật khẩu *</label><div class="pwrap"><input id="su_pass" type="password"><button type="button" class="pweye" onclick="togglePw(&quot;su_pass&quot;,this)">👁</button></div>'
+  +'<label>Nhập lại mật khẩu *</label><div class="pwrap"><input id="su_pass2" type="password"><button type="button" class="pweye" onclick="togglePw(&quot;su_pass2&quot;,this)">👁</button></div>'
+  +'<button class="btn" onclick="doSetup()">Tạo tài khoản Quản lý</button></div>';
+}
+async function doSetup(){
+  const n=$('su_name').value.trim(), u=$('su_user').value.trim().toLowerCase(), p=$('su_pass').value;
+  if(!n||!u||!p){ alert('Điền đủ thông tin'); return; }
+  if(p.length<4){ alert('Mật khẩu tối thiểu 4 ký tự'); return; }
+  if(p!==$('su_pass2').value){ alert('Mật khẩu nhập lại không khớp'); return; }
+  const usr = {id:uid(), username:u, pass:hp(p), role:'admin', name:n, staffId:''};
+  db.users.push(usr); me = usr;
+  await saveCatalog(); try{ await dataApi.setSession(usr.id); }catch(e){}
+  boot();
+}
+function renderLogin(role){
+  window._role = role;
+  const ttl = role==='admin'? '🛡️ Đăng nhập QUẢN LÝ' : '🛒 Đăng nhập BÁN HÀNG';
+  $('view').innerHTML = '<div class="sec" style="margin-top:30px;padding:22px 16px">'
+  +'<h2 style="color:var(--green);font-size:17px;text-align:center">'+ttl+'</h2>'
+  +'<label>Tên đăng nhập (ID)</label><input id="lg_user" autocapitalize="off">'
+  +'<label>Mật khẩu</label><div class="pwrap"><input id="lg_pass" type="password" onkeydown="if(event.key===\'Enter\')doLogin()"><button type="button" class="pweye" onclick="togglePw(&quot;lg_pass&quot;,this)">👁</button></div>'
+  +'<button class="btn" onclick="doLogin()">Đăng nhập</button>'
+  +'<button class="btn line" onclick="renderLanding()">‹ Quay lại</button></div>';
+}
+async function doLogin(){
+  const u=$('lg_user').value.trim().toLowerCase(), p=$('lg_pass').value;
+  const byName = db.users.find(x=>x.username===u);
+  if(!byName){ alert('ID "'+u+'" không tồn tại. Kiểm tra lại tên đăng nhập.'); return; }
+  if(byName.pass!==hp(p)){ alert('Mật khẩu không đúng cho ID "'+u+'". Bấm 👁 để kiểm tra lại ký tự đã gõ.'); return; }
+  const usr = byName;
+  if(window._role && usr.role!==window._role){
+    const nameOf = r => r==='admin'?'QUẢN LÝ':'BÁN HÀNG';
+    alert('Tài khoản này thuộc mục '+nameOf(usr.role)+'.'); return;
+  }
+  me = usr; try{ await dataApi.setSession(usr.id); }catch(e){}
+  tab = 'dash'; boot();
+}
+function go(t){ if(!me) return;
+  if(me.role==='sale' && t==='admin') return;
+  tab = t; document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on', b.dataset.t===t)); render(); window.scrollTo(0,0); }
+function fabClick(){
+  if(tab==='dash'||tab==='orders'){ if(window._ordView==='quote') formQuote(); else formOrder(); }
+  else if(tab==='cust') formCustomer();
+  else if(tab==='stock'){ if(!isOwner()) return; const sv=window._stockView||'ton'; if(sv==='ncc') formSupplier(); else if(sv==='kk') formAdjust(); else if(sv==='nhan') formLabelEntry(''); else formEntry(); }
+  else (isOwner()? formStaff() : formOrder());
+}
+function openSheet(html){ $('sheet').innerHTML = html; $('sheet').style.display='block'; $('ovl').style.display='block'; }
+function closeSheet(){ $('sheet').style.display='none'; $('ovl').style.display='none'; }
+function render(){
+  if(!db || !me) return;
+  $('fab').style.display = (tab==='stock' && !isOwner())? 'none' : 'block';
+  if(tab==='dash') renderDash();
+  else if(tab==='orders') renderOrders();
+  else if(tab==='cust') renderCust();
+  else if(tab==='stock') renderStock();
+  else renderAdmin();
+}
+/* ================= TINH TOAN DON HANG ================= */
+function orderSubtotal(o){ return o.items.reduce((s,it)=>s+it.qty*it.price,0); }
+// Tinh so tien giam cua 1 chuong trinh KM tren don: items = [{qty, price}]
+function promoDiscount(pr, items, sub){
+  if(!pr) return 0;
+  if(pr.type==='percent') return sub*pr.value/100;
+  if(pr.type==='amount') return pr.value;
+  if(pr.type==='gift'){
+    const X = +pr.buyX||0, Y = +pr.giftY||0; if(X<=0||Y<=0||!items.length) return 0;
+    const units = items.reduce((s,it)=>s+it.qty,0);
+    const freeUnits = Math.floor(units/(X+Y))*Y;
+    if(!freeUnits) return 0;
+    return freeUnits * Math.min(...items.map(it=>it.price||0)); // tang san pham re nhat trong don
+  }
+  return 0; // freeship: khong tru tien hang (shop chiu phi ship qua o "Phi van chuyen")
+}
+function promoLabel(p){
+  if(p.type==='percent') return 'Giảm '+p.value+'%';
+  if(p.type==='amount') return 'Giảm '+fmt(p.value);
+  if(p.type==='gift') return 'Mua '+(p.buyX||'?')+' tặng '+(p.giftY||'?');
+  return '🚚 Miễn phí ship';
+}
+function orderDiscount(o){
+  let d = 0, sub = orderSubtotal(o);
+  if(o.promoId){ const p = db.promos.find(x=>x.id===o.promoId); if(p) d += promoDiscount(p, o.items, sub); }
+  d += (o.extraDisc||0);
+  return Math.min(d, sub);
+}
+function orderRevenue(o){ if(isMktOrder(o)) return +o.net||0; return orderSubtotal(o) - orderDiscount(o); }
+function orderCOGS(o){ return o.items.reduce((s,it)=>s+it.qty*(it.cost||0),0); }
+function orderProfit(o){ return orderRevenue(o) - orderCOGS(o) - (o.ship||0) - (o.pack||0) - (o.comm||0); }
+function inRange(dstr, range){
+  const d = (dstr||'').slice(0,10), now = new Date(), y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0');
+  if(range==='day') return d === today();
+  if(range==='week'){ const t = new Date(); t.setDate(t.getDate()-6); return d >= t.toISOString().slice(0,10); }
+  if(range==='month') return d.startsWith(`${y}-${m}`);
+  if(range==='year') return d.startsWith(`${y}-`);
+  return true;
+}
+function activeOrders(range){ return db.orders.filter(o=>!CLOSED_NO_SALE.includes(o.status) && inRange(o.date, range)); }
+function supplierDebt(supplierId){
+  return db.entries.filter(e=>e.supplierId===supplierId && !e.paid).reduce((s,e)=>s+e.qty*e.cost,0);
+}
+function totalSupplierDebt(){ return db.entries.filter(e=>!e.paid).reduce((s,e)=>s+e.qty*e.cost,0); }
+function codPending(){ return db.orders.filter(o=>!CLOSED_NO_SALE.includes(o.status) && (o.payMethod==='cod'||o.payMethod==='san') && o.payStatus!=='roi').reduce((s,o)=>s+orderRevenue(o),0); }
+function lowStockList(){ return db.products.filter(p=>p.stock<=(p.minStock??10)); }
+function labelLowStockList(){ return db.products.filter(p=>(p.labelMin||0)>0 && (p.labelStock||0)<=p.labelMin); }
+/* ================= TONG QUAN ================= */
+function renderDash(){
+  const own = isOwner();
+  const os = activeOrders(dashRange).filter(o=>own || o.staffId===me.staffId);
+  const rev = os.reduce((s,o)=>s+orderRevenue(o),0);
+  const cogs = os.reduce((s,o)=>s+orderCOGS(o),0);
+  const opCost = os.reduce((s,o)=>s+(o.ship||0)+(o.pack||0)+(o.comm||0),0);
+  const exp = db.expenses.filter(e=>inRange(e.date,dashRange)).reduce((s,e)=>s+e.amount,0);
+  const profit = rev - cogs - opCost - exp;
+  const ranges = [['day','Hôm nay'],['week','7 ngày'],['month','Tháng này'],['year','Năm nay'],['all','Tất cả']];
+  const rlabel = ranges.find(r=>r[0]===dashRange)[1];
+  const cntMoi = db.orders.filter(o=>o.status==='moi'&&(own||o.staffId===me.staffId)).length;
+  const cntGiao = db.orders.filter(o=>o.status==='giao'&&(own||o.staffId===me.staffId)).length;
+  let h = '<div class="chips">'+ranges.map(([k,l])=>'<div class="chip '+(dashRange===k?'on':'')+'" onclick="dashRange=\''+k+'\';render()">'+l+'</div>').join('')+'</div>';
+  h += '<div class="cards">';
+  if(own){
+    h += '<div class="kpi big"><div class="l">Lợi nhuận ('+rlabel+')</div><div class="v">'+fmt(profit)+'</div><div class="d">= Doanh thu − giá vốn − ship/đóng gói/hoa hồng − chi phí khác</div></div>';
+    h += '<div class="kpi"><div class="l">Doanh thu</div><div class="v">'+fmt(rev)+'</div><div class="d">'+os.length+' đơn</div></div>';
+    h += '<div class="kpi"><div class="l">Giá vốn hàng</div><div class="v">'+fmt(cogs)+'</div></div>';
+    const cod = codPending();
+    h += '<div class="kpi'+(cod>0?' warn':'')+'"><div class="l">Tiền COD / Sàn đang chờ</div><div class="v">'+fmt(cod)+'</div><div class="d">Chưa về tài khoản shop</div></div>';
+    const debt = totalSupplierDebt();
+    h += '<div class="kpi'+(debt>0?' warn':'')+'"><div class="l">Công nợ nhà cung cấp</div><div class="v">'+fmt(debt)+'</div></div>';
+    h += '<div class="kpi"><div class="l">Đơn chờ giao / đang giao</div><div class="v">'+cntMoi+' / '+cntGiao+'</div></div>';
+  } else {
+    h += '<div class="kpi big"><div class="l">Doanh thu của tôi ('+rlabel+')</div><div class="v">'+fmt(rev)+'</div><div class="d">'+os.length+' đơn trong kỳ</div></div>';
+    h += '<div class="kpi"><div class="l">Số đơn</div><div class="v">'+os.length+'</div></div>';
+    h += '<div class="kpi"><div class="l">Hoa hồng của tôi</div><div class="v">'+fmt(os.reduce((s,o)=>s+(o.comm||0),0))+'</div></div>';
+  }
+  h += '</div>';
+  if(own){
+    const low = lowStockList();
+    h += '<div class="sec"><h3>⚠️ Cảnh báo tồn thấp ('+low.length+')</h3>'
+      + (low.length? '<table><tr><th>Sản phẩm</th><th class="r">Tồn</th><th class="r">Ngưỡng cảnh báo</th></tr>'
+        + low.map(p=>'<tr><td>'+esc(p.name)+'</td><td class="r neg">'+p.stock+'</td><td class="r">'+(p.minStock??10)+'</td></tr>').join('') + '</table>'
+        : '<div class="empty">Không có sản phẩm nào dưới ngưỡng ✓</div>') + '</div>';
+    const lowLabel = labelLowStockList();
+    if(lowLabel.length){
+      h += '<div class="sec"><h3>🏷️ Cảnh báo nhãn sắp hết ('+lowLabel.length+')</h3>'
+        + '<table><tr><th>Sản phẩm</th><th class="r">Tồn nhãn</th><th class="r">Ngưỡng cảnh báo</th></tr>'
+        + lowLabel.map(p=>'<tr><td>'+esc(p.name)+'</td><td class="r neg">'+(p.labelStock||0)+'</td><td class="r">'+p.labelMin+'</td></tr>').join('') + '</table></div>';
+    }
+    const byStaff = {};
+    os.forEach(o=>{ const k=o.staffId||'none'; byStaff[k]=byStaff[k]||{rev:0,n:0,comm:0}; byStaff[k].rev+=orderRevenue(o); byStaff[k].n++; byStaff[k].comm+=(o.comm||0); });
+    const maxRev = Math.max(1,...Object.values(byStaff).map(x=>x.rev));
+    const staffRows = Object.entries(byStaff).sort((a,b)=>b[1].rev-a[1].rev).map(([k,v])=>{
+      const st = db.staff.find(s=>s.id===k);
+      return '<tr><td><b>'+esc(st?st.name:'— Chưa gán —')+'</b><div class="bar" style="width:'+Math.round(v.rev/maxRev*100)+'%"></div></td><td class="r">'+v.n+'</td><td class="r money">'+fmt(v.rev)+'</td><td class="r">'+fmt(v.comm)+'</td></tr>';
+    }).join('') || '<tr><td colspan="4" class="empty">Chưa có đơn trong kỳ này</td></tr>';
+    h += '<div class="sec"><h3>Doanh số theo nhân viên</h3><table><tr><th>Nhân viên</th><th class="r">Đơn</th><th class="r">Doanh thu</th><th class="r">Hoa hồng</th></tr>'+staffRows+'</table></div>';
+  }
+  const byDay = {};
+  os.forEach(o=>{ const d=o.date.slice(0,10); byDay[d]=byDay[d]||{rev:0,n:0,p:0}; byDay[d].rev+=orderRevenue(o); byDay[d].n++; byDay[d].p+=orderProfit(o); });
+  const dayRows = Object.entries(byDay).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,31).map(([d,v])=>
+    '<tr><td>'+d.split('-').reverse().join('/')+'</td><td class="r">'+v.n+'</td><td class="r money">'+fmt(v.rev)+'</td>'+(own?'<td class="r '+(v.p<0?'neg':'money')+'">'+fmt(v.p)+'</td>':'')+'</tr>').join('')
+    || '<tr><td colspan="4" class="empty">Chưa có dữ liệu</td></tr>';
+  h += '<div class="sec"><h3>Theo ngày (trong kỳ)</h3><table><tr><th>Ngày</th><th class="r">Đơn</th><th class="r">Doanh thu</th>'+(own?'<th class="r">Lợi nhuận</th>':'')+'</tr>'+dayRows+'</table></div>';
+  const byMonth = {};
+  db.orders.filter(o=>!CLOSED_NO_SALE.includes(o.status) && o.date.startsWith(new Date().getFullYear()+'-') && (own||o.staffId===me.staffId)).forEach(o=>{
+    const m=o.date.slice(0,7); byMonth[m]=byMonth[m]||{rev:0,n:0,p:0}; byMonth[m].rev+=orderRevenue(o); byMonth[m].n++; byMonth[m].p+=orderProfit(o); });
+  const monRows = Object.entries(byMonth).sort().map(([m,v])=>
+    '<tr><td>Tháng '+(+m.slice(5))+'</td><td class="r">'+v.n+'</td><td class="r money">'+fmt(v.rev)+'</td>'+(own?'<td class="r '+(v.p<0?'neg':'money')+'">'+fmt(v.p)+'</td>':'')+'</tr>').join('')
+    || '<tr><td colspan="4" class="empty">Chưa có dữ liệu</td></tr>';
+  h += '<div class="sec"><h3>Theo tháng — năm '+new Date().getFullYear()+'</h3><table><tr><th>Tháng</th><th class="r">Đơn</th><th class="r">Doanh thu</th>'+(own?'<th class="r">Lợi nhuận</th>':'')+'</tr>'+monRows+'</table></div>';
+  if(own){
+    const prof = {};
+    os.forEach(o=>o.items.forEach(it=>{ prof[it.pid]=prof[it.pid]||{name:it.name,qty:0,profit:0}; prof[it.pid].qty+=it.qty; prof[it.pid].profit+=(it.price-(it.cost||0))*it.qty; }));
+    const profRows = Object.values(prof).sort((a,b)=>b.profit-a.profit).map(r=>'<tr><td>'+esc(r.name)+'</td><td class="r">'+r.qty+'</td><td class="r money">'+fmt(r.profit)+'</td></tr>').join('')
+      || '<tr><td colspan="3" class="empty">Chưa có dữ liệu</td></tr>';
+    h += '<div class="sec"><h3>Lãi gộp theo sản phẩm (trong kỳ)</h3><div class="hint" style="padding:0 13px">Ước tính theo giá bán trừ giá vốn từng dòng, chưa trừ chiết khấu toàn đơn.</div><table><tr><th>Sản phẩm</th><th class="r">SL bán</th><th class="r">Lãi gộp</th></tr>'+profRows+'</table></div>';
+    h += '<button class="btn line" onclick="exportCSV()">⬇ Xuất Excel (CSV) toàn bộ đơn hàng</button>';
+  } else {
+    h += '<div class="hint" style="margin-top:10px;text-align:center">👤 Tài khoản bán hàng — hiển thị số liệu của riêng bạn</div>';
+  }
+  $('view').innerHTML = h;
+}
+/* ================= DON HANG & BAO GIA ================= */
+let draft = null;
+function renderOrders(){
+  window._ordView = window._ordView || 'order';
+  const isQ = window._ordView==='quote';
+  let h = '<div class="chips"><div class="chip '+(!isQ?'on':'')+'" onclick="window._ordView=\'order\';renderOrders()">Đơn hàng</div><div class="chip '+(isQ?'on':'')+'" onclick="window._ordView=\'quote\';renderOrders()">Báo giá</div></div>';
+  if(isQ){ h += renderQuoteList(); $('view').innerHTML = h; return; }
+  const q = (window._oq||'').toLowerCase();
+  const base = isOwner()? db.orders : db.orders.filter(o=>o.staffId===me.staffId);
+  const list = base.slice().sort((a,b)=>b.date.localeCompare(a.date))
+    .filter(o=>{ if(!q) return true; const c = db.customers.find(x=>x.id===o.custId);
+      return (o.code||'').toLowerCase().includes(q) || (c&&c.name.toLowerCase().includes(q)); });
+  h += `<input class="search" placeholder="🔍 Tìm mã đơn, tên khách…" value="${esc(window._oq||'')}" oninput="window._oq=this.value;renderOrders()">
+  <div class="sec">${ list.length ? list.map(o=>{
+    const c = db.customers.find(x=>x.id===o.custId);
+    return `<div class="list-item" onclick="viewOrder('${o.id}')">
+      <div><div class="t">${o.code} · ${esc(c?c.name:'Khách lẻ')}</div>
+      <div class="s">${o.date.slice(0,10).split('-').reverse().join('/')} · ${o.items.length} SP ${o.channel && o.channel!=='truc_tiep'?'· <span class="tag giao">'+(CHANNELS[o.channel]||'')+'</span> ':''}${!CLOSED_NO_SALE.includes(o.status)? (o.payMethod==='san'? (o.payStatus==='roi'? '· <span class="tag thu">💰 Sàn đã chuyển tiền</span>' : '· <span class="tag chuathu">⏳ Chờ sàn chuyển tiền</span>') : (o.payStatus==='roi'? '· <span class="tag thu">💰 Đã thanh toán</span>' : (o.status==='xong'? '· <span class="tag chuathu">Chưa thu tiền</span>':''))) : ''}</div></div>
+      <div style="text-align:right"><div class="money">${fmt(orderRevenue(o))}</div><span class="tag ${TAGC[o.status]}">${STATUS[o.status]}</span></div>
+    </div>`;}).join('') : '<div class="empty">Chưa có đơn hàng.<br>Bấm nút <b>+</b> vàng để tạo đơn đầu tiên.</div>' }</div>`;
+  $('view').innerHTML = h;
+}
+function renderQuoteList(){
+  const list = db.quotes.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  return '<div class="sec">'+(list.length? list.map(q=>{ const c = db.customers.find(x=>x.id===q.custId);
+    const sub = q.items.reduce((s,it)=>s+it.qty*it.price,0);
+    return '<div class="list-item" onclick="viewQuote(\''+q.id+'\')"><div><div class="t">'+q.code+' · '+esc(c?c.name:'Khách lẻ')+'</div><div class="s">'+q.date.slice(0,10).split('-').reverse().join('/')+' · '+q.items.length+' SP'+(q.converted?' · <span class="tag xong">Đã chuyển đơn</span>':'')+'</div></div><div class="money">'+fmt(sub)+'</div></div>';
+  }).join('') : '<div class="empty">Chưa có báo giá nào.<br>Bấm <b>+</b> để tạo báo giá.</div>')+'</div>';
+}
+function formOrder(){
+  if(!db.customers.length){ alert('Hãy thêm khách hàng trước (tab Khách).'); go('cust'); return; }
+  draft = {items:[{pid:db.products[0]?.id, qty:1}], custId:db.customers[0].id, staffId:(isOwner()? (db.staff[0]?.id||'') : (me.staffId||'')), channel:'truc_tiep', net:'', promoId:'', promoCode:'', extraDisc:0, ship:0, pack:0, commOverride:null, note:'', date:today(), payMethod:'tienmat'};
+  drawOrderForm();
+}
+function drawOrderForm(){
+  const isMkt = draft.channel==='shopee'||draft.channel==='tiktok';
+  const sub = draft.items.reduce((s,it)=>{ const p = db.products.find(x=>x.id===it.pid); return s + (p? p.price*it.qty : 0);},0);
+  let disc = 0;
+  const prSel = (!isMkt && draft.promoId)? db.promos.find(x=>x.id===draft.promoId) : null;
+  if(prSel) disc += promoDiscount(prSel, draft.items.map(it=>{ const p = db.products.find(x=>x.id===it.pid); return {qty:it.qty, price:p?p.price:0}; }), sub);
+  if(!isMkt) disc += (+draft.extraDisc||0);
+  disc = Math.min(disc, sub);
+  const net = +draft.net||0;
+  const revenue = isMkt? net : (sub-disc);
+  const st = db.staff.find(s=>s.id===draft.staffId);
+  const autoComm = st ? Math.round(revenue*st.pct/100) : 0;
+  const comm = draft.commOverride!==null && draft.commOverride!=='' ? +draft.commOverride : autoComm;
+  const cogs = draft.items.reduce((s,it)=>{const p=db.products.find(x=>x.id===it.pid);return s+(p?p.cost*it.qty:0);},0);
+  openSheet(`<h2>🧾 Tạo đơn hàng</h2>
+  <label>Kênh bán</label><select onchange="draft.channel=this.value;drawOrderForm()">${Object.entries(CHANNELS).map(([k,v])=>`<option value="${k}" ${draft.channel===k?'selected':''}>${v}</option>`).join('')}</select>
+  ${isMkt? '<div class="hint">🛒 Đơn '+CHANNELS[draft.channel]+': sàn đã tự tính phí ship, phí sàn, voucher… — chỉ cần chọn SẢN PHẨM (để trừ kho) và nhập TIỀN THU VỀ mà sàn báo. Chưa biết số chính xác thì để 0, sau khi đối soát Quản lý sửa lại trong chi tiết đơn. Mẹo: tạo 1 khách chung tên "Khách Shopee"/"Khách TikTok" nếu không cần lưu từng người.</div>':''}
+  <div class="row2"><div><label>Khách hàng</label><select onchange="draft.custId=this.value">
+    ${db.customers.map(c=>`<option value="${c.id}" ${c.id===draft.custId?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
+  <div><label>Ngày</label><input type="date" value="${draft.date}" onchange="draft.date=this.value"></div></div>
+  <label>Sản phẩm</label>
+  ${draft.items.map((it,i)=>{ const p = db.products.find(x=>x.id===it.pid);
+    return `<div class="row3" style="margin-bottom:6px">
+    <select onchange="draft.items[${i}].pid=this.value;drawOrderForm()">${db.products.map(pp=>`<option value="${pp.id}" ${pp.id===it.pid?'selected':''}>${esc(pp.name)} (tồn ${pp.stock})</option>`).join('')}</select>
+    <input type="number" min="1" value="${it.qty}" onchange="draft.items[${i}].qty=+this.value||1;drawOrderForm()">
+    <div style="font-size:12px;padding-bottom:12px;white-space:nowrap">${p?fmt(p.price*it.qty):''}</div>
+    <button class="xdel" onclick="draft.items.splice(${i},1);drawOrderForm()">✕</button></div>`;}).join('')}
+  <button class="btn sm line" onclick="draft.items.push({pid:db.products[0].id,qty:1});drawOrderForm()">+ Thêm sản phẩm</button>
+  ${isMkt? `<label>💰 Tiền thu về từ sàn (đ) — số sàn báo cho đơn này</label><input type="number" value="${draft.net}" onchange="draft.net=this.value;drawOrderForm()" placeholder="Xem ở Shopee/TikTok Seller: doanh thu ước tính của đơn">`
+  : `<label>Mã giảm giá (nếu khách dùng)</label><input value="${esc(draft.promoCode||'')}" placeholder="VD: ANVIFA10 — bỏ trống nếu không có" onchange="applyPromoCode(this.value)">
+  ${prSel && prSel.type==='freeship'? '<div class="hint">🚚 Đơn FREESHIP — không trừ tiền hàng; shop chịu phí ship, điền ô "Phí vận chuyển" trong Tùy chọn thêm để lợi nhuận trừ đúng.</div>':''}
+  ${prSel && prSel.type==='gift'? '<div class="hint">🎁 '+promoLabel(prSel)+': nhập đủ CẢ số tặng vào phần Sản phẩm (VD mua '+prSel.buyX+' tặng '+prSel.giftY+' thì nhập '+(prSel.buyX+prSel.giftY)+') — hệ thống tự trừ tiền '+prSel.giftY+' sản phẩm rẻ nhất.</div>':''}`}
+  <button class="btn sm line" onclick="window._ordAdv=!window._ordAdv;drawOrderForm()">${window._ordAdv?'▲ Ẩn bớt tùy chọn':'⚙ Tùy chọn thêm (nhân viên, ship, chiết khấu, hoa hồng…)'}</button>
+  ${window._ordAdv? `<div class="row2"><div><label>Nhân viên sale</label><select ${isOwner()?'':'disabled'} onchange="draft.staffId=this.value;draft.commOverride=null;drawOrderForm()">
+    <option value="">— Không —</option>${db.staff.map(s=>`<option value="${s.id}" ${s.id===draft.staffId?'selected':''}>${esc(s.name)}</option>`).join('')}</select></div>
+  <div><label>Hoa hồng sale (tự tính ${fmt(autoComm)})</label><input type="number" value="${comm}" onchange="draft.commOverride=this.value"></div></div>
+  ${isMkt? `<label>Mã giảm giá của shop (nếu khách dùng — chỉ để thống kê)</label><input value="${esc(draft.promoCode||'')}" placeholder="VD: ANVIFA10" onchange="draft.promoCode=this.value.trim().toUpperCase()">
+  <div class="hint">Voucher shop trên sàn đã bị trừ sẵn vào "tiền thu về" — ghi mã chỉ để thống kê, KHÔNG trừ tiền thêm lần nữa.</div>
+  <label>Phí đóng hàng (đ)</label><input type="number" value="${draft.pack}" onchange="draft.pack=+this.value||0;drawOrderForm()">`
+  : `<label>Chương trình KM (chọn tay nếu không dùng mã)</label><select onchange="draft.promoId=this.value;draft.promoCode='';drawOrderForm()">
+    <option value="">— Không —</option>${db.promos.filter(p=>p.active).map(p=>`<option value="${p.id}" ${p.id===draft.promoId?'selected':''}>${esc(p.name)}${p.code?' ['+esc(p.code)+']':''}</option>`).join('')}</select>
+  <label>Chiết khấu thêm (đ)</label><input type="number" value="${draft.extraDisc}" onchange="draft.extraDisc=+this.value||0;drawOrderForm()">
+  <div class="row2"><div><label>Phí vận chuyển (đ)</label><input type="number" value="${draft.ship}" onchange="draft.ship=+this.value||0;drawOrderForm()"></div>
+  <div><label>Phí đóng hàng (đ)</label><input type="number" value="${draft.pack}" onchange="draft.pack=+this.value||0;drawOrderForm()"></div></div>
+  <label>Phương thức thanh toán dự kiến</label>
+  <select onchange="draft.payMethod=this.value">${Object.entries(PAYM).filter(([k])=>k!=='san').map(([k,v])=>`<option value="${k}" ${draft.payMethod===k?'selected':''}>${v}</option>`).join('')}</select>`}
+  <label>Ghi chú</label><input value="${esc(draft.note)}" onchange="draft.note=this.value">` : ''}
+  <div style="margin-top:14px">
+    ${isMkt? `<div class="tot"><span>Giá niêm yết (tham khảo)</span><b>${fmt(sub)}</b></div>
+    ${net>0? `<div class="tot"><span>Phí sàn & khấu trừ (ước tính)</span><b>− ${fmt(Math.max(0, sub-net))}</b></div>`:''}
+    <div class="tot grand"><span>Thực nhận từ sàn</span><b>${fmt(net)}</b></div>`
+    : `<div class="tot"><span>Tiền hàng</span><b>${fmt(sub)}</b></div>
+    <div class="tot"><span>Chiết khấu</span><b>− ${fmt(disc)}</b></div>
+    <div class="tot grand"><span>Khách trả</span><b>${fmt(sub-disc)}</b></div>`}
+    ${isOwner()? '<div class="tot"><span>Lợi nhuận dự kiến</span><b>'+fmt(revenue-cogs-(isMkt?0:+draft.ship||0)-(+draft.pack||0)-comm)+'</b></div>' : ''}
+  </div>
+  <button class="btn" onclick="saveOrder()">Lưu đơn hàng</button>
+  <button class="btn line" onclick="closeSheet()">Đóng</button>`);
+}
+function applyPromoCode(v){
+  v = (v||'').trim();
+  draft.promoCode = v;
+  if(v){
+    const pr = db.promos.find(p=>p.active && (p.code||'').toLowerCase()===v.toLowerCase());
+    if(pr) draft.promoId = pr.id;
+    else alert('Không tìm thấy mã "'+v+'".\nQuản lý cần tạo mã này trước ở: Quản trị → Chương trình / chính sách CK → ô "Mã giảm giá".');
+  }
+  drawOrderForm();
+}
+async function saveOrder(){
+  if(!draft.items.length){ alert('Đơn chưa có sản phẩm'); return; }
+  const isMkt = draft.channel==='shopee'||draft.channel==='tiktok';
+  if(isMkt && !(+draft.net) && !confirm('Chưa nhập "Tiền thu về từ sàn". Lưu tạm 0đ và điền lại sau khi đối soát?')) return;
+  for(const it of draft.items){ const p = db.products.find(x=>x.id===it.pid);
+    if(p && p.stock < it.qty && !confirm(`"${p.name}" chỉ còn tồn ${p.stock}. Vẫn lưu đơn?`)) return; }
+  const st = db.staff.find(s=>s.id===draft.staffId);
+  const items = draft.items.map(it=>{ const p = db.products.find(x=>x.id===it.pid);
+    return {pid:it.pid, name:p.name, qty:it.qty, price:p.price, cost:p.cost}; });
+  const sub = items.reduce((s,it)=>s+it.qty*it.price,0);
+  let disc = 0; if(!isMkt && draft.promoId){ const pr = db.promos.find(x=>x.id===draft.promoId); if(pr) disc += promoDiscount(pr, items, sub); }
+  if(!isMkt) disc += (+draft.extraDisc||0);
+  const revenue = isMkt? (+draft.net||0) : (sub-Math.min(disc,sub));
+  const autoComm = st ? Math.round(revenue*st.pct/100) : 0;
+  const comm = draft.commOverride!==null && draft.commOverride!=='' ? +draft.commOverride : autoComm;
+  const o = {id:uid(), code:rndCode('DH'), date:draft.date, custId:draft.custId, staffId:draft.staffId,
+    channel:draft.channel||'truc_tiep', net:isMkt? (+draft.net||0) : 0,
+    items, promoId:isMkt?'':draft.promoId, promoCode:draft.promoCode||'', extraDisc:isMkt?0:(+draft.extraDisc||0), ship:isMkt?0:(+draft.ship||0), pack:+draft.pack||0, comm,
+    note:draft.note, status:'moi', payMethod:isMkt?'san':(draft.payMethod||'tienmat'), payStatus:'chua'};
+  items.forEach(it=>{ const p = db.products.find(x=>x.id===it.pid); if(p) p.stock -= it.qty; });
+  db.orders.push(o); await saveRec('orders', o); await saveCatalog(); closeSheet(); go('orders');
+}
+function viewOrder(id){
+  const o = db.orders.find(x=>x.id===id); if(!o) return;
+  if(!isOwner() && o.staffId!==me.staffId){ alert('Đơn này thuộc nhân viên khác.'); return; }
+  const c = db.customers.find(x=>x.id===o.custId), st = db.staff.find(x=>x.id===o.staffId);
+  const mkt = isMktOrder(o);
+  openSheet(`<h2>${o.code} <span class="tag ${TAGC[o.status]}">${STATUS[o.status]}</span>${o.channel && o.channel!=='truc_tiep'?` <span class="tag giao">${CHANNELS[o.channel]||''}</span>`:''}</h2>
+  <div class="detail">
+  <p><b>Khách:</b> ${esc(c?c.name+' · '+c.phone:'—')}<br><b>Địa chỉ:</b> ${esc(c?c.address:'—')}<br>
+  <b>Ngày:</b> ${o.date.slice(0,10).split('-').reverse().join('/')} · <b>Sale:</b> ${esc(st?st.name:'—')}</p>
+  <table><tr><th>Sản phẩm</th><th class="r">SL</th><th class="r">Thành tiền</th></tr>
+  ${o.items.map(it=>`<tr><td>${esc(it.name)}</td><td class="r">${it.qty}</td><td class="r">${fmt(it.qty*it.price)}</td></tr>`).join('')}</table>
+  <div style="margin-top:10px">
+  ${mkt? `<div class="tot"><span>Giá niêm yết (tham khảo)</span><b>${fmt(orderSubtotal(o))}</b></div>
+  ${orderRevenue(o)>0?`<div class="tot"><span>Phí sàn & khấu trừ (ước tính)</span><b>− ${fmt(Math.max(0, orderSubtotal(o)-orderRevenue(o)))}</b></div>`:''}
+  ${o.promoCode?`<div class="tot"><span>Mã giảm giá shop (đã trừ trong tiền thu về)</span><b>${esc(o.promoCode)}</b></div>`:''}
+  <div class="tot grand"><span>Thực nhận từ sàn</span><b>${fmt(orderRevenue(o))}</b></div>
+  ${orderRevenue(o)<=0?'<div class="hint">⚠ Chưa nhập tiền thu về — lợi nhuận đơn đang tính tạm bằng 0đ doanh thu. Quản lý điền số ở ô bên dưới sau khi đối soát với sàn.</div>':''}`
+  : `<div class="tot"><span>Tiền hàng</span><b>${fmt(orderSubtotal(o))}</b></div>
+  <div class="tot"><span>Chiết khấu</span><b>− ${fmt(orderDiscount(o))}</b></div>
+  ${o.promoCode?`<div class="tot"><span>Mã giảm giá</span><b>${esc(o.promoCode)}</b></div>`:''}
+  <div class="tot grand"><span>Khách trả</span><b>${fmt(orderRevenue(o))}</b></div>`}
+  <div class="tot"><span>${mkt?'':'Ship '+fmt(o.ship)+' · '}Gói ${fmt(o.pack)} · Hoa hồng ${fmt(o.comm)}</span></div>
+  ${isOwner()? '<div class="tot"><span>Lợi nhuận đơn</span><b class="'+(orderProfit(o)<0?'neg':'')+'">'+fmt(orderProfit(o))+'</b></div>' : ''}
+  <div class="tot"><span>Thanh toán</span><b>${PAYM[o.payMethod]||'—'} · ${o.payMethod==='san'? (o.payStatus==='roi'?'✓ Sàn đã chuyển tiền':'⏳ Chờ sàn chuyển tiền') : (o.payStatus==='roi'?'✓ Đã thanh toán':'Chưa thu')}</b></div>
+  ${o.note?`<div class="tot"><span>Ghi chú: ${esc(o.note)}</span></div>`:''}
+  </div></div>
+  ${isOwner() && o.status==='moi' ? `<button class="btn gold" onclick="setStatus('${o.id}','giao')">✔ DUYỆT — chuyển sang Đang giao</button>` : ''}
+  ${isOwner() && o.status==='giao' ? `<button class="btn line" style="border-color:#8a5000;color:#8a5000" onclick="if(confirm('Xác nhận khách KHÔNG NHẬN hàng, đơn bị hoàn về? Phí ship ${fmt(o.ship)} sẽ được ghi là lỗ.')) setStatus('${o.id}','hoan')">↩ Khách không nhận — Đánh dấu HOÀN HÀNG</button>` : ''}
+  ${isOwner()? `<label>Trạng thái giao</label>
+  <select onchange="setStatus('${o.id}',this.value)">${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${o.status===k?'selected':''}>${v}</option>`).join('')}</select>` : `<div class="hint">Đơn sẽ được Quản lý duyệt và cập nhật trạng thái giao hàng.</div>`}
+  ${isOwner() && mkt? `<label>💰 Tiền thu về từ sàn (đ) — sửa sau khi đối soát</label><input type="number" value="${o.net||0}" onchange="setNet('${o.id}',this.value)">
+  ${o.payStatus!=='roi'? `<div class="hint">⏳ Khách đã trả tiền cho sàn khi đặt — sàn sẽ chuyển về sau khi giao xong + đối soát. Chỉ bấm nút dưới khi tiền THẬT SỰ về tài khoản.</div><button class="btn gold" onclick="markPaid('${o.id}')">💰 Sàn ĐÃ CHUYỂN tiền về tài khoản</button>` : `<div class="hint">✓ Đã nhận tiền sàn ${o.paidAt?('lúc '+new Date(o.paidAt).toLocaleString('vi-VN')):''}</div><button class="btn sm line" onclick="undoPaid('${o.id}')">↩ Hủy đánh dấu (bấm nhầm)</button>`}` : ''}
+  ${isOwner() && !mkt? `<label>Phương thức thanh toán</label>
+  <select onchange="setPayMethod('${o.id}',this.value)">${Object.entries(PAYM).filter(([k])=>k!=='san').map(([k,v])=>`<option value="${k}" ${o.payMethod===k?'selected':''}>${v}</option>`).join('')}</select>
+  ${o.payStatus!=='roi'? `<button class="btn gold" onclick="markPaid('${o.id}')">💰 Đánh dấu ĐÃ THU tiền</button>` : `<div class="hint">✓ Đã thu ${o.paidAt?('lúc '+new Date(o.paidAt).toLocaleString('vi-VN')):''}</div><button class="btn sm line" onclick="undoPaid('${o.id}')">↩ Hủy đánh dấu (bấm nhầm)</button>`}` : ''}
+  <button class="btn line" onclick="printOrder('${o.id}')">🖨️ In phiếu giao hàng / hóa đơn</button>
+  ${isOwner()? '<button class="btn danger" onclick="delOrder(\''+o.id+'\')">Xóa đơn (hoàn tồn kho)</button>' : ''}
+  <button class="btn line" onclick="closeSheet()">Đóng</button>`);
+}
+async function setStatus(id,s){
+  if(!isOwner()) return;
+  const o = db.orders.find(x=>x.id===id);
+  const wasOpen = !CLOSED_NO_SALE.includes(o.status), willClose = CLOSED_NO_SALE.includes(s);
+  const wasClosed = CLOSED_NO_SALE.includes(o.status), willOpen = !CLOSED_NO_SALE.includes(s);
+  if(wasOpen && willClose) o.items.forEach(it=>{ const p=db.products.find(x=>x.id===it.pid); if(p) p.stock+=it.qty; });
+  if(wasClosed && willOpen) o.items.forEach(it=>{ const p=db.products.find(x=>x.id===it.pid); if(p) p.stock-=it.qty; });
+  // Hoan hang: tien ship da chi cho don vi van chuyen KHONG lay lai duoc -> ghi nhan la 1 khoan lo that,
+  // chi ghi 1 lan duy nhat (tranh viec bam qua lai nhieu lan bi tinh lap).
+  if(s==='hoan' && !o._returnFeeLogged && o.ship>0){
+    const exp = {id:uid(), date:today(), type:'Phí ship đơn hoàn về', method:'tienmat', amount:o.ship, note:'Đơn '+o.code+' — khách không nhận hàng'};
+    db.expenses.push(exp); await saveRec('expenses', exp);
+    o._returnFeeLogged = true;
+  }
+  o.status = s; await saveRec('orders',o); if(willClose||willOpen) await saveCatalog(); render();
+}
+async function setPayMethod(id,v){ if(!isOwner())return; const o=db.orders.find(x=>x.id===id); o.payMethod=v; await saveRec('orders',o); render(); }
+async function setNet(id,v){ if(!isOwner())return; const o=db.orders.find(x=>x.id===id); o.net=+v||0; await saveRec('orders',o); render(); }
+async function undoPaid(id){
+  if(!isOwner()) return;
+  if(!confirm('Hủy đánh dấu đã thu tiền? Khoản thu tương ứng trong sổ Thu - Chi cũng sẽ bị xóa.')) return;
+  const o = db.orders.find(x=>x.id===id); if(!o) return;
+  o.payStatus='chua'; o.paidAt=null; await saveRec('orders',o);
+  const inc = db.incomes.find(i=>i.orderId===o.id);
+  if(inc){ db.incomes = db.incomes.filter(i=>i.id!==inc.id); await delRec('incomes', inc.id); }
+  closeSheet(); render();
+}
+async function markPaid(id){
+  if(!isOwner()) return;
+  const o = db.orders.find(x=>x.id===id); if(!o) return;
+  if(CLOSED_NO_SALE.includes(o.status)){ alert('Đơn đã hủy/hoàn thì không thu tiền được.'); return; }
+  o.payStatus='roi'; o.paidAt=Date.now();
+  await saveRec('orders',o);
+  const inc = {id:uid(), date:today(), type:'ban_hang', amount:orderRevenue(o), method:o.payMethod||'tienmat', note:'Thu tiền đơn '+o.code, orderId:o.id};
+  db.incomes.push(inc); await saveRec('incomes', inc);
+  closeSheet(); render();
+}
+async function delOrder(id){
+  if(!confirm('Xóa đơn này? Tồn kho sẽ được hoàn lại.')) return;
+  const o = db.orders.find(x=>x.id===id);
+  if(!CLOSED_NO_SALE.includes(o.status)) o.items.forEach(it=>{ const p=db.products.find(x=>x.id===it.pid); if(p) p.stock+=it.qty; });
+  db.orders = db.orders.filter(x=>x.id!==id); await delRec('orders', id); await saveCatalog(); closeSheet(); render();
+}
+function printOrder(id){
+  const o = db.orders.find(x=>x.id===id); if(!o) return;
+  const c = db.customers.find(x=>x.id===o.custId);
+  const rows = o.items.map(it=>`<tr><td>${esc(it.name)}</td><td style="text-align:center">${it.qty}</td><td style="text-align:right">${fmt(it.price)}</td><td style="text-align:right">${fmt(it.qty*it.price)}</td></tr>`).join('');
+  const html = `<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><title>${o.code}</title>
+  <style>body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{color:#14532D;font-size:20px;margin-bottom:2px}
+  table{width:100%;border-collapse:collapse;margin-top:14px}th,td{border:1px solid #ccc;padding:7px 9px;font-size:13px}
+  th{background:#f3f1e9;text-align:left}.tot{margin-top:12px;text-align:right;font-size:14px}.tot b{font-size:17px;color:#14532D}
+  .hd{display:flex;justify-content:space-between;margin-bottom:16px}</style></head><body>
+  <div class="hd"><div><h1>ANVIFA</h1><div>Phiếu giao hàng / Hóa đơn bán hàng</div></div><div style="text-align:right"><b>${o.code}</b><br>${o.date.slice(0,10).split('-').reverse().join('/')}</div></div>
+  <p><b>Khách hàng:</b> ${esc(c?c.name:'Khách lẻ')} — ${esc(c?c.phone:'')}<br><b>Địa chỉ:</b> ${esc(c?c.address:'')}</p>
+  <table><tr><th>Sản phẩm</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th></tr>${rows}</table>
+  <div class="tot">Tiền hàng: ${fmt(orderSubtotal(o))}<br>Chiết khấu: −${fmt(orderDiscount(o))}<br><b>Khách trả: ${fmt(orderRevenue(o))}</b></div>
+  <p style="margin-top:40px">Người giao hàng: ___________________ &nbsp;&nbsp;&nbsp; Người nhận hàng: ___________________</p>
+  <script>window.print()<\/script></body></html>`;
+  const w = window.open('', '_blank'); w.document.write(html); w.document.close();
+}
+/* ================= BAO GIA ================= */
+let qdraft = null;
+function formQuote(){
+  if(!db.customers.length){ alert('Hãy thêm khách hàng trước (tab Khách).'); go('cust'); return; }
+  qdraft = {items:[{pid:db.products[0]?.id, qty:1}], custId:db.customers[0].id, note:'', date:today()};
+  drawQuoteForm();
+}
+function drawQuoteForm(){
+  const sub = qdraft.items.reduce((s,it)=>{ const p = db.products.find(x=>x.id===it.pid); return s + (p? p.price*it.qty : 0);},0);
+  openSheet(`<h2>📋 Tạo báo giá</h2>
+  <label>Ngày</label><input type="date" value="${qdraft.date}" onchange="qdraft.date=this.value">
+  <label>Khách hàng</label><select onchange="qdraft.custId=this.value">${db.customers.map(c=>`<option value="${c.id}" ${c.id===qdraft.custId?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
+  <label>Sản phẩm</label>
+  ${qdraft.items.map((it,i)=>{ const p = db.products.find(x=>x.id===it.pid);
+    return `<div class="row3" style="margin-bottom:6px">
+    <select onchange="qdraft.items[${i}].pid=this.value;drawQuoteForm()">${db.products.map(pp=>`<option value="${pp.id}" ${pp.id===it.pid?'selected':''}>${esc(pp.name)}</option>`).join('')}</select>
+    <input type="number" min="1" value="${it.qty}" onchange="qdraft.items[${i}].qty=+this.value||1;drawQuoteForm()">
+    <div style="font-size:12px;padding-bottom:12px;white-space:nowrap">${p?fmt(p.price*it.qty):''}</div>
+    <button class="xdel" onclick="qdraft.items.splice(${i},1);drawQuoteForm()">✕</button></div>`;}).join('')}
+  <button class="btn sm line" onclick="qdraft.items.push({pid:db.products[0].id,qty:1});drawQuoteForm()">+ Thêm sản phẩm</button>
+  <label>Ghi chú</label><input value="${esc(qdraft.note)}" onchange="qdraft.note=this.value">
+  <div class="tot grand"><span>Tổng báo giá</span><b>${fmt(sub)}</b></div>
+  <button class="btn" onclick="saveQuote()">Lưu báo giá</button>
+  <button class="btn line" onclick="closeSheet()">Đóng</button>`);
+}
+async function saveQuote(){
+  if(!qdraft.items.length){ alert('Chưa có sản phẩm'); return; }
+  const items = qdraft.items.map(it=>{ const p = db.products.find(x=>x.id===it.pid); return {pid:it.pid,name:p.name,qty:it.qty,price:p.price,cost:p.cost}; });
+  const q = {id:uid(), code:rndCode('BG'), date:qdraft.date, custId:qdraft.custId, items, note:qdraft.note, converted:false};
+  db.quotes.push(q); await saveRec('quotes', q); closeSheet(); render();
+}
+function viewQuote(id){
+  const q = db.quotes.find(x=>x.id===id); if(!q) return;
+  const c = db.customers.find(x=>x.id===q.custId);
+  const sub = q.items.reduce((s,it)=>s+it.qty*it.price,0);
+  openSheet(`<h2>${q.code}${q.converted?' <span class="tag xong">Đã chuyển đơn</span>':''}</h2>
+  <div class="detail"><p><b>Khách:</b> ${esc(c?c.name:'—')}<br><b>Ngày:</b> ${q.date.slice(0,10).split('-').reverse().join('/')}</p></div>
+  <table><tr><th>Sản phẩm</th><th class="r">SL</th><th class="r">Thành tiền</th></tr>
+  ${q.items.map(it=>`<tr><td>${esc(it.name)}</td><td class="r">${it.qty}</td><td class="r">${fmt(it.qty*it.price)}</td></tr>`).join('')}</table>
+  <div class="tot grand"><span>Tổng</span><b>${fmt(sub)}</b></div>
+  ${q.note?`<div class="hint">Ghi chú: ${esc(q.note)}</div>`:''}
+  ${!q.converted? `<button class="btn gold" onclick="convertQuote('${q.id}')">➡ Chuyển thành đơn hàng</button>` : ''}
+  <button class="btn danger" onclick="delQuote('${q.id}')">Xóa báo giá</button>
+  <button class="btn line" onclick="closeSheet()">Đóng</button>`);
+}
+async function convertQuote(id){
+  const q = db.quotes.find(x=>x.id===id); if(!q) return;
+  draft = {items:q.items.map(it=>({pid:it.pid,qty:it.qty})), custId:q.custId, staffId:(isOwner()?(db.staff[0]?.id||''):(me.staffId||'')), channel:'truc_tiep', net:'', promoId:'', promoCode:'', extraDisc:0, ship:0, pack:0, commOverride:null, note:'Từ báo giá '+q.code, date:today(), payMethod:'tienmat'};
+  q.converted = true; await saveRec('quotes', q);
+  window._ordView='order'; drawOrderForm();
+}
+async function delQuote(id){ if(!confirm('Xóa báo giá này?')) return; db.quotes = db.quotes.filter(x=>x.id!==id); await delRec('quotes', id); closeSheet(); render(); }
+/* ================= KHACH HANG ================= */
+function renderCust(){
+  const q = (window._cq||'').toLowerCase();
+  const list = db.customers.filter(c=>!q || c.name.toLowerCase().includes(q) || c.phone.includes(q) || (c.address||'').toLowerCase().includes(q));
+  $('view').innerHTML = `
+  <input class="search" placeholder="🔍 Tìm tên, SĐT, địa chỉ…" value="${esc(window._cq||'')}" oninput="window._cq=this.value;renderCust()">
+  <div class="sec">${ list.length ? list.map(c=>{
+    const os = db.orders.filter(o=>o.custId===c.id && !CLOSED_NO_SALE.includes(o.status));
+    const tot = os.reduce((s,o)=>s+orderRevenue(o),0);
+    return `<div class="list-item" onclick="viewCust('${c.id}')">
+      <div><div class="t">${esc(c.name)}</div><div class="s">📞 ${esc(c.phone)}<br>📍 ${esc(c.address)}</div></div>
+      <div style="text-align:right"><div class="money">${fmt(tot)}</div><div class="s">${os.length} đơn</div></div></div>`;
+  }).join('') : '<div class="empty">Chưa có khách hàng.<br>Bấm <b>+</b> để thêm nhà vườn đầu tiên.</div>'}</div>`;
+}
+function formCustomer(c){
+  c = c || {id:'',name:'',phone:'',address:'',note:''};
+  openSheet(`<h2>${c.id?'Sửa':'➕ Thêm'} khách hàng</h2>
+  <label>Tên khách / nhà vườn *</label><input id="f_name" value="${esc(c.name)}">
+  <label>Số điện thoại / Zalo *</label><input id="f_phone" value="${esc(c.phone)}">
+  <label>Địa chỉ đầy đủ (ấp/xã/huyện/tỉnh)</label><textarea id="f_addr" rows="2">${esc(c.address)}</textarea>
+  <label>Ghi chú (trồng cây gì, diện tích…)</label><input id="f_note" value="${esc(c.note||'')}">
+  <button class="btn" onclick="saveCust('${c.id}')">Lưu khách hàng</button>
+  ${c.id && isOwner()?`<button class="btn danger" onclick="delCust('${c.id}')">Xóa khách</button>`:''}
+  <button class="btn line" onclick="closeSheet()">Đóng</button>`);
+}
+async function saveCust(id){
+  const name = $('f_name').value.trim(), phone = $('f_phone').value.trim();
+  if(!name||!phone){ alert('Cần tên và SĐT'); return; }
+  const data = {name, phone, address:$('f_addr').value.trim(), note:$('f_note').value.trim()};
+  if(id){ Object.assign(db.customers.find(x=>x.id===id), data); }
+  else db.customers.push({id:uid(), ...data});
+  await saveCatalog(); closeSheet(); render();
+}
+async function delCust(id){ if(!isOwner()) return; if(!confirm('Xóa khách này?')) return; db.customers = db.customers.filter(x=>x.id!==id); await saveCatalog(); closeSheet(); render(); }
+function viewCust(id){
+  const c = db.customers.find(x=>x.id===id);
+  const os = db.orders.filter(o=>o.custId===id).sort((a,b)=>b.date.localeCompare(a.date));
+  openSheet(`<h2>${esc(c.name)}</h2>
+  <div class="detail"><p>📞 ${esc(c.phone)}<br>📍 ${esc(c.address)}${c.note?`<br>📝 ${esc(c.note)}`:''}</p></div>
+  <h2 style="margin-top:14px;font-size:13px">Lịch sử mua hàng (${os.length} đơn)</h2>
+  <table><tr><th>Đơn</th><th>Ngày</th><th class="r">Tiền</th></tr>
+  ${os.map(o=>`<tr onclick="viewOrder('${o.id}')" style="cursor:pointer"><td>${o.code} <span class="tag ${TAGC[o.status]}">${STATUS[o.status]}</span></td><td>${o.date.slice(5,10).split('-').reverse().join('/')}</td><td class="r money">${fmt(orderRevenue(o))}</td></tr>`).join('')||'<tr><td colspan="3" class="empty">Chưa mua lần nào</td></tr>'}</table>
+  <button class="btn line" onclick="formCustomer(db.customers.find(x=>x.id==='${id}'))">✏️ Sửa thông tin</button>
+  <button class="btn line" onclick="closeSheet()">Đóng</button>`);
+}
+/* ================= KHO: TON KHO / NHAP / KIEM KHO / NCC ================= */
+function renderStock(){
+  window._stockView = window._stockView || 'ton';
+  let v = window._stockView;
+  const own = isOwner();
+  const chips = own? [['ton','Tồn kho'],['nhap','Lịch sử nhập'],['nhan','Nhãn'],['kk','Kiểm kho'],['ncc','Nhà cung cấp']] : [['ton','Tồn kho']];
+  if(!own && v!=='ton'){ v = window._stockView = 'ton'; }
+  let h = own? ('<div class="chips">'+chips.map(([k,l])=>'<div class="chip '+(v===k?'on':'')+'" onclick="window._stockView=\''+k+'\';renderStock()">'+l+'</div>').join('')+'</div>') : '';
+  if(v==='ton') h += renderStockTon();
+  else if(v==='nhap') h += renderStockNhap();
+  else if(v==='nhan') h += renderStockNhan();
+  else if(v==='kk') h += renderStockKK();
+  else h += renderStockNCC();
+  $('view').innerHTML = h;
+}
+function renderStockTon(){
+  const own = isOwner();
+  return `<div class="sec"><h3>Tồn kho ${own?'<span class="act" onclick="formProduct()">+ Thêm sản phẩm</span>':''}</h3>
+  <table><tr><th>Sản phẩm</th><th class="r">Tồn</th><th>KM / Chiết khấu</th>${own?'<th class="r">Tồn nhãn</th><th class="r">Giá vốn</th>':''}<th class="r">Giá bán</th>${own?'<th></th>':''}</tr>
+  ${db.products.map(p=>{ const lblLow = (p.labelMin||0)>0 && (p.labelStock||0)<=p.labelMin;
+    return `<tr onclick="${own?`formProduct('${p.id}')`:''}" style="${own?'cursor:pointer':''}">
+    <td><b>${esc(p.name)}</b>${p.stock<=(p.minStock??10)?' <span class="tag chuathu">Sắp hết</span>':''}</td><td class="r" style="font-weight:800;color:${p.stock<=(p.minStock??10)?'var(--red)':'var(--green)'}">${p.stock}</td>
+    <td>${p.promo?'<span class="tag moi">'+esc(p.promo)+'</span>':'<span class="s" style="color:var(--mut)">—</span>'}</td>
+    ${own?'<td class="r" style="font-weight:800;color:'+((p.labelStock||0)<0||lblLow?'var(--red)':'var(--ink)')+'">'+(p.labelStock||0)+(lblLow?' <span class="tag chuathu">Sắp hết</span>':'')+'</td><td class="r">'+fmt(p.cost)+'</td>':''}<td class="r money">${fmt(p.price)}</td>
+    ${own?`<td class="r"><button class="xdel" onclick="event.stopPropagation();formLabelEntry('','${p.id}')" title="Thêm nhãn">🏷️</button></td>`:''}</tr>`;}).join('')}</table></div>
+  ${own?'<button class="btn gold" onclick="formEntry()">📥 Nhập kho</button>':''}`;
+}
+function renderStockNhap(){
+  return `<div class="sec"><h3>Lịch sử nhập kho</h3>
+  <table><tr><th>Ngày</th><th>Sản phẩm / Lô</th><th class="r">SL</th>${isOwner()?'<th class="r">Thành tiền</th>':''}${isOwner()?'<th></th>':''}</tr>
+  ${db.entries.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(e=>{ const p = db.products.find(x=>x.id===e.pid); const sup = db.suppliers.find(x=>x.id===e.supplierId);
+    return `<tr onclick="${isOwner()?`editEntry('${e.id}')`:''}" style="${isOwner()?'cursor:pointer':''}"><td>${e.date.slice(5,10).split('-').reverse().join('/')}</td>
+    <td>${esc(p?p.name:'? (đã xóa)')}${e.lotNo?'<div class="s">Lô '+esc(e.lotNo)+(e.expDate?' · HSD '+e.expDate.slice(5,10).split('-').reverse().join('/'):'')+(sup?' · '+esc(sup.name):'')+(isOwner()?(' · '+(e.paid?'<span class=\\"tag thu\\">Đã trả NCC</span>':'<span class=\\"tag chuathu\\">Còn nợ NCC</span>')):'')+'</div>':''}</td>
+    <td class="r">+${e.qty}</td>${isOwner()?'<td class="r">'+fmt(e.qty*e.cost)+'</td>':''}${isOwner()?`<td class="r"><button class="xdel" onclick="event.stopPropagation();delEntry('${e.id}')">✕</button></td>`:''}</tr>`;}).join('')
+    || '<tr><td colspan="5" class="empty">Chưa có phiếu nhập</td></tr>'}</table>
+  ${isOwner()?'<div class="hint" style="padding:0 13px 12px">Bấm vào một dòng để sửa; xóa phiếu sẽ tự trừ lại đúng số lượng đã cộng vào kho.</div>':''}</div>`;
+}
+function renderStockKK(){
+  return `<div class="sec"><h3>Lịch sử kiểm kho / điều chỉnh</h3>
+  <table><tr><th>Ngày</th><th>Sản phẩm</th><th class="r">Trước</th><th class="r">Sau</th><th class="r">Lệch</th></tr>
+  ${db.adjustments.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(a=>{ const p = db.products.find(x=>x.id===a.pid);
+    return `<tr><td>${a.date.slice(5,10).split('-').reverse().join('/')}</td><td>${esc(p?p.name:'?')}${a.reason?'<div class="s">'+esc(a.reason)+'</div>':''}</td><td class="r">${a.before}</td><td class="r">${a.after}</td><td class="r ${a.diff<0?'neg':'money'}">${a.diff>0?'+':''}${a.diff}</td></tr>`;}).join('')
+    || '<tr><td colspan="5" class="empty">Chưa có phiếu kiểm kho</td></tr>'}</table></div>
+  <button class="btn gold" onclick="formAdjust()">📋 Kiểm kho / Điều chỉnh tồn</button>`;
+}
+function renderStockNCC(){
+  const debt = totalSupplierDebt();
+  let h = `<div class="sec"><h3>Nhà cung cấp ${isOwner()?'<span class="act" onclick="formSupplier()">+ Thêm</span>':''}</h3>
+  ${db.suppliers.map(s=>{ const d = supplierDebt(s.id);
+    return `<div class="list-item" onclick="formSupplier(db.suppliers.find(x=>x.id==='${s.id}'))"><div><div class="t">${esc(s.name)}</div><div class="s">📞 ${esc(s.phone||'—')}</div></div><div style="text-align:right"><div class="money ${d>0?'neg':''}">${fmt(d)}</div><div class="s">${d>0?'còn nợ':'đã thanh toán'}</div></div></div>`;}).join('')
+    || '<div class="empty">Chưa có nhà cung cấp</div>'}</div>`;
+  if(isOwner()){
+    h += `<div class="sec"><h3>Công nợ nhà cung cấp — tổng ${fmt(debt)}</h3>
+    <table><tr><th>Ngày nhập</th><th>Nhà cung cấp</th><th>Sản phẩm</th><th class="r">Số tiền</th><th></th></tr>
+    ${db.entries.filter(e=>!e.paid).sort((a,b)=>a.date.localeCompare(b.date)).map(e=>{ const sup=db.suppliers.find(x=>x.id===e.supplierId); const p=db.products.find(x=>x.id===e.pid);
+      return `<tr><td>${e.date.slice(5,10).split('-').reverse().join('/')}</td><td>${esc(sup?sup.name:'—')}</td><td>${esc(p?p.name:'?')}</td><td class="r neg">${fmt(e.qty*e.cost)}</td><td class="r"><button class="btn sm line" style="margin:0" onclick="markEntryPaid('${e.id}')">Đã trả</button></td></tr>`;}).join('')
+      || '<tr><td colspan="5" class="empty">Không còn khoản nợ nào ✓</td></tr>'}</table></div>`;
+  }
+  return h;
+}
+function formSupplier(s){
+  if(!isOwner()) return;
+  s = s || {id:'',name:'',phone:'',address:'',taxCode:'',note:''};
+  openSheet(`<h2>${s.id?'Sửa':'➕ Thêm'} nhà cung cấp</h2>
+  <label>Tên nhà cung cấp *</label><input id="sp_name" value="${esc(s.name)}">
+  <label>SĐT</label><input id="sp_phone" value="${esc(s.phone)}">
+  <label>Địa chỉ</label><input id="sp_addr" value="${esc(s.address||'')}">
+  <label>Mã số thuế</label><input id="sp_tax" value="${esc(s.taxCode||'')}">
+  <label>Ghi chú</label><input id="sp_note" value="${esc(s.note||'')}">
+  <button class="btn" onclick="saveSupplier('${s.id}')">Lưu</button>
+  ${s.id?`<button class="btn danger" onclick="delSupplier('${s.id}')">Xóa</button>`:''}
+  <button class="btn line" onclick="closeSheet()">Đóng</button>`);
+}
+async function saveSupplier(id){
+  const name = $('sp_name').value.trim(); if(!name){ alert('Cần tên nhà cung cấp'); return; }
+  const data = {name, phone:$('sp_phone').value.trim(), address:$('sp_addr').value.trim(), taxCode:$('sp_tax').value.trim(), note:$('sp_note').value.trim()};
+  if(id) Object.assign(db.suppliers.find(x=>x.id===id), data); else db.suppliers.push({id:uid(), ...data});
+  await saveCatalog(); closeSheet(); render();
+}
+async function delSupplier(id){ if(!confirm('Xóa nhà cung cấp này?')) return; db.suppliers = db.suppliers.filter(x=>x.id!==id); await saveCatalog(); closeSheet(); render(); }
+async function markEntryPaid(id){
+  // Chi luu trang thai da tra NCC de theo doi cong no — KHONG tu tao khoan Chi.
+  // Ly do: gia von hang ban da duoc tru rieng qua tung don hang (COGS), neu them
+  // 1 khoan "Chi nhap hang" o day se bi TRU TRUNG vao loi nhuan.
+  const e = db.entries.find(x=>x.id===id); if(!e) return;
+  e.paid = true; await saveRec('entries', e);
+  render();
+}
+function formProduct(id){
+  if(!isOwner()){ alert('Chỉ chủ tài khoản được thêm/sửa sản phẩm.'); return; }
+  const p = db.products.find(x=>x.id===id) || {id:'',name:'',unit:'chai',cost:0,price:0,stock:0,minStock:10,labelStock:0,labelMin:0,promo:''};
+  openSheet(`<h2>${id?'Sửa':'➕ Thêm'} sản phẩm</h2>
+  <label>Tên sản phẩm *</label><input id="p_name" value="${esc(p.name)}">
+  <div class="row2"><div><label>Đơn vị</label><input id="p_unit" value="${esc(p.unit)}"></div>
+  <div><label>Tồn hiện tại</label><input id="p_stock" type="number" value="${p.stock}"></div></div>
+  <div class="row2"><div><label>Giá vốn bình quân (đ)</label><input id="p_cost" type="number" value="${p.cost}"></div>
+  <div><label>Giá bán (đ)</label><input id="p_price" type="number" value="${p.price}"></div></div>
+  <label>Ngưỡng cảnh báo tồn thấp</label><input id="p_min" type="number" value="${p.minStock??10}">
+  <label>Chương trình khuyến mãi / Chiết khấu</label><input id="p_promo" value="${esc(p.promo||'')}" placeholder="VD: Mua 3 tặng 1, hoặc Giảm 10% cho đại lý">
+  <div class="hint">Hiển thị ở cột "KM / Chiết khấu" trong Tồn kho, cả nhân viên bán hàng cũng xem được. Để trống nếu không có chương trình.</div>
+  <div class="row2"><div><label>Tồn nhãn hiện có</label><input id="p_labelstock" type="number" value="${p.labelStock||0}"></div>
+  <div><label>Ngưỡng cảnh báo nhãn (0 = tắt)</label><input id="p_labelmin" type="number" value="${p.labelMin||0}"></div></div>
+  <div class="hint">Tồn nhãn tự tăng khi bạn khai báo lần nhập nhãn mới (tab Kho → Nhãn), tự giảm khi Nhập kho sản phẩm này. Đặt ngưỡng cảnh báo &gt; 0 để được nhắc đặt/in thêm khi gần hết.</div>
+  <button class="btn" onclick="saveProduct('${id||''}')">Lưu</button>
+  ${id?`<button class="btn danger" onclick="delProduct('${id}')">Xóa sản phẩm</button>`:''}
+  <button class="btn line" onclick="closeSheet()">Đóng</button>`);
+}
+async function saveProduct(id){
+  const d = {name:$('p_name').value.trim(), unit:$('p_unit').value.trim(), cost:+$('p_cost').value||0, price:+$('p_price').value||0, stock:+$('p_stock').value||0, minStock:+$('p_min').value||0, promo:$('p_promo').value.trim(), labelStock:+$('p_labelstock').value||0, labelMin:+$('p_labelmin').value||0};
+  if(!d.name){ alert('Cần tên sản phẩm'); return; }
+  if(id) Object.assign(db.products.find(x=>x.id===id), d); else db.products.push({id:uid(), ...d});
+  await saveCatalog(); closeSheet(); render();
+}
+async function delProduct(id){ if(!confirm('Xóa sản phẩm này?')) return; db.products = db.products.filter(x=>x.id!==id); await saveCatalog(); closeSheet(); render(); }
+function formEntry(editId){
+  if(!db.products.length){ alert('Thêm sản phẩm trước.'); return; }
+  const e = editId? db.entries.find(x=>x.id===editId) : null;
+  openSheet(`<h2>📥 ${e?'Sửa':''} Phiếu nhập kho</h2>
+  <label>Ngày</label><input id="e_date" type="date" value="${e?e.date:today()}">
+  <label>Sản phẩm</label><select id="e_pid" ${e?'disabled':''}>${db.products.map(p=>`<option value="${p.id}" ${e&&e.pid===p.id?'selected':''}>${esc(p.name)} (tồn ${p.stock})</option>`).join('')}</select>
+  ${isOwner()?`<label>Nhà cung cấp</label><select id="e_sup"><option value="">— Không chọn —</option>${db.suppliers.map(s=>`<option value="${s.id}" ${e&&e.supplierId===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select>`:''}
+  <div class="row2"><div><label>Số lượng nhập *</label><input id="e_qty" type="number" min="1" value="${e?e.qty:''}"></div>
+  ${isOwner()?`<div><label>Đơn giá nhập (đ)</label><input id="e_cost" type="number" value="${e?e.cost:''}"></div>`:''}</div>
+  <div class="row2"><div><label>Số lô</label><input id="e_lot" value="${e?esc(e.lotNo||''):''}"></div>
+  <div><label>NSX</label><input id="e_mfg" type="date" value="${e?(e.mfgDate||''):''}"></div></div>
+  <label>HSD (hạn sử dụng)</label><input id="e_exp" type="date" value="${e?(e.expDate||''):''}">
+  ${isOwner()?`<label>Tình trạng thanh toán NCC</label><select id="e_paid"><option value="0" ${!(e&&e.paid)?'selected':''}>Chưa thanh toán</option><option value="1" ${(e&&e.paid)?'selected':''}>Đã thanh toán</option></select>`:''}
+  ${isOwner()?'<div class="hint">Giá vốn sản phẩm sẽ được tính <b>bình quân gia quyền</b>: (tồn cũ × giá vốn cũ + SL nhập × giá nhập mới) ÷ tổng tồn. Giá nhập lên xuống sẽ được "hòa" dần vào giá vốn, không ghi đè đột ngột. Bỏ trống = giữ giá vốn cũ. Các đơn ĐÃ bán vẫn giữ giá vốn tại thời điểm bán.</div>':''}
+  <button class="btn" onclick="saveEntry('${editId||''}')">${e?'Lưu thay đổi':'Nhập kho'}</button>
+  ${e && isOwner()?`<button class="btn danger" onclick="delEntry('${editId}')">Xóa phiếu nhập</button>`:''}
+  <button class="btn line" onclick="closeSheet()">Đóng</button>`);
+}
+function editEntry(id){ if(!isOwner()) return; formEntry(id); }
+async function saveEntry(editId){
+  const qty = +$('e_qty').value, cost = $('e_cost')? +$('e_cost').value : 0;
+  if(!qty || qty<1){ alert('Nhập số lượng'); return; }
+  const lotNo = $('e_lot')?.value.trim()||'', mfgDate = $('e_mfg')?.value||'', expDate = $('e_exp')?.value||'';
+  const supplierId = $('e_sup')?.value||''; const paid = $('e_paid')? $('e_paid').value==='1' : true;
+  if(editId){
+    const en = db.entries.find(x=>x.id===editId), p = db.products.find(x=>x.id===en.pid);
+    if(p){ const delta = qty - en.qty; p.stock += delta; p.labelStock = (p.labelStock||0) - delta; }
+    Object.assign(en, {date:$('e_date').value, qty, lotNo, mfgDate, expDate, paid});
+    if(cost>0) en.cost = cost; if($('e_sup')) en.supplierId = supplierId;
+    // Sua phieu nhap: tinh lai gia von = binh quan gia quyen toan bo cac lan nhap cua san pham nay
+    if(p && cost>0){
+      const es = db.entries.filter(x=>x.pid===en.pid && x.cost>0);
+      const totQ = es.reduce((s,x)=>s+x.qty,0);
+      if(totQ>0) p.cost = Math.round(es.reduce((s,x)=>s+x.qty*x.cost,0)/totQ);
+    }
+    await saveRec('entries', en); await saveCatalog();
+  } else {
+    const pid = $('e_pid').value, p = db.products.find(x=>x.id===pid);
+    // Gia von BINH QUAN GIA QUYEN: (ton cu x gia von cu + SL nhap x gia nhap moi) / tong ton
+    if(cost>0){
+      const oldStock = Math.max(0, p.stock||0);
+      p.cost = (oldStock>0 && p.cost>0)? Math.round((oldStock*p.cost + qty*cost)/(oldStock+qty)) : cost;
+    }
+    p.stock += qty; p.labelStock = (p.labelStock||0) - qty;
+    const en = {id:uid(), date:$('e_date').value, pid, qty, cost:cost||p.cost, lotNo, mfgDate, expDate, supplierId, paid};
+    db.entries.push(en); await saveRec('entries', en); await saveCatalog();
+  }
+  closeSheet(); render();
+}
+async function delEntry(id){
+  if(!isOwner()) return;
+  if(!confirm('Xóa phiếu nhập này? Số lượng đã cộng vào kho sẽ được trừ lại tương ứng (và tồn nhãn được cộng lại tương ứng).')) return;
+  const en = db.entries.find(x=>x.id===id); const p = db.products.find(x=>x.id===en.pid);
+  if(p){ p.stock -= en.qty; p.labelStock = (p.labelStock||0) + en.qty; }
+  db.entries = db.entries.filter(x=>x.id!==id);
+  await delRec('entries', id); await saveCatalog(); closeSheet(); render();
+}
+/* ================= NHAN (TON KHO NHAN IN, TRU TU DONG KHI NHAP KHO) ================= */
+function renderStockNhan(){
+  if(!isOwner()) return '<div class="sec"><div class="empty">🔒 Chỉ chủ tài khoản xem được tồn nhãn.</div></div>';
+  return `<div class="sec"><h3>Lịch sử nhập nhãn</h3>
+  <table><tr><th>Ngày in nhãn</th><th>Sản phẩm</th><th class="r">SL nhãn</th><th></th></tr>
+  ${db.labelEntries.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(le=>{ const p = db.products.find(x=>x.id===le.pid);
+    return `<tr onclick="formLabelEntry('${le.id}')" style="cursor:pointer"><td>${le.date.slice(5,10).split('-').reverse().join('/')}</td>
+    <td>${esc(p?p.name:'? (đã xóa)')}${p?'<div class="s">Tồn nhãn hiện có: '+(p.labelStock||0)+'</div>':''}</td>
+    <td class="r">+${le.qty}</td><td class="r"><button class="xdel" onclick="event.stopPropagation();delLabelEntry('${le.id}')">✕</button></td></tr>`;}).join('')
+    || '<tr><td colspan="4" class="empty">Chưa có lần nhập nhãn nào</td></tr>'}</table>
+  <div class="hint" style="padding:0 13px 12px">Bấm vào một dòng để sửa. Khi Nhập kho sản phẩm (đóng gói ra hàng thành phẩm), tồn nhãn tương ứng sẽ tự động trừ đi.</div></div>
+  <button class="btn gold" onclick="formLabelEntry('')">🏷️ Thêm nhãn</button>`;
+}
+function formLabelEntry(editId, presetPid){
+  if(!isOwner()){ alert('Chỉ chủ tài khoản được quản lý tồn nhãn.'); return; }
+  if(!db.products.length){ alert('Thêm sản phẩm trước.'); return; }
+  const le = editId? db.labelEntries.find(x=>x.id===editId) : null;
+  const pid = le? le.pid : (presetPid || db.products[0].id);
+  openSheet(`<h2>🏷️ ${le?'Sửa':'➕ Thêm'} nhãn nhập về</h2>
+  <label>Sản phẩm</label><select id="ln_pid" ${le?'disabled':''}>${db.products.map(p=>`<option value="${p.id}" ${p.id===pid?'selected':''}>${esc(p.name)} (tồn nhãn ${p.labelStock||0})</option>`).join('')}</select>
+  <label>Ngày in nhãn</label><input id="ln_date" type="date" value="${le?le.date:today()}">
+  <label>Số lượng nhãn *</label><input id="ln_qty" type="number" min="1" value="${le?le.qty:''}">
+  <button class="btn" onclick="saveLabelEntry('${editId||''}')">Lưu</button>
+  ${le?`<button class="btn danger" onclick="delLabelEntry('${editId}')">Xóa</button>`:''}
+  <button class="btn line" onclick="closeSheet()">Đóng</button>`);
+}
+async function saveLabelEntry(editId){
+  if(!isOwner()) return;
+  const qty = +$('ln_qty').value;
+  if(!qty || qty<1){ alert('Nhập số lượng nhãn'); return; }
+  const date = $('ln_date').value || today();
+  if(editId){
+    const le = db.labelEntries.find(x=>x.id===editId), p = db.products.find(x=>x.id===le.pid);
+    if(p) p.labelStock = (p.labelStock||0) + (qty - le.qty);
+    Object.assign(le, {date, qty});
+    await saveRec('labelEntries', le); await saveCatalog();
+  } else {
+    const pid = $('ln_pid').value, p = db.products.find(x=>x.id===pid);
+    if(p) p.labelStock = (p.labelStock||0) + qty;
+    const le = {id:uid(), date, pid, qty};
+    db.labelEntries.push(le); await saveRec('labelEntries', le); await saveCatalog();
+  }
+  closeSheet(); render();
+}
+async function delLabelEntry(id){
+  if(!isOwner()) return;
+  if(!confirm('Xóa lần nhập nhãn này? Tồn nhãn sẽ được trừ lại tương ứng.')) return;
+  const le = db.labelEntries.find(x=>x.id===id); const p = db.products.find(x=>x.id===le.pid);
+  if(p) p.labelStock = (p.labelStock||0) - le.qty;
+  db.labelEntries = db.labelEntries.filter(x=>x.id!==id);
+  await delRec('labelEntries', id); await saveCatalog(); closeSheet(); render();
+}
+/* ================= KIEM KHO / DIEU CHINH ================= */
+function formAdjust(){
+  if(!isOwner()) return;
+  if(!db.products.length){ alert('Chưa có sản phẩm.'); return; }
+  openSheet(`<h2>📋 Kiểm kho / Điều chỉnh</h2>
+  <label>Ngày</label><input id="a_date" type="date" value="${today()}">
+  <label>Sản phẩm</label><select id="a_pid" onchange="$('a_before').textContent=db.products.find(x=>x.id===this.value).stock">${db.products.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
+  <div class="hint">Tồn theo sổ sách: <b id="a_before">${db.products[0].stock}</b></div>
+  <label>Số lượng đếm thực tế *</label><input id="a_after" type="number" min="0">
+  <label>Lý do</label><input id="a_reason" placeholder="VD: hao hụt, ẩm mốc, kiểm kê định kỳ...">
+  <button class="btn" onclick="saveAdjust()">Lưu điều chỉnh</button>
+  <button class="btn line" onclick="closeSheet()">Đóng</button>`);
+}
+async function saveAdjust(){
+  const pid = $('a_pid').value, after = +$('a_after').value;
+  if($('a_after').value===''){ alert('Nhập số lượng đếm thực tế'); return; }
+  const p = db.products.find(x=>x.id===pid); const before = p.stock;
+  const adj = {id:uid(), date:$('a_date').value, pid, before, after, diff:after-before, reason:$('a_reason').value.trim()};
+  p.stock = after;
+  db.adjustments.push(adj); await saveRec('adjustments', adj); await saveCatalog();
+  closeSheet(); render();
+}
+/* ================= QUAN TRI ================= */
+function renderAdmin(){
+  const own = isOwner();
+  let h = '';
+  if(!own) h += '<div class="sec"><div class="empty">🔒 Đang ở chế độ nhân viên.<br>Giá vốn, lợi nhuận, chi phí và sao lưu chỉ chủ tài khoản xem được.</div></div>';
+  h += '<div class="sec"><h3>Nhân viên sale '+(own?'<span class="act" onclick="formStaff()">+ Thêm</span>':'')+'</h3>'
+    + (db.staff.map(s=>{ const os = db.orders.filter(o=>o.staffId===s.id&&!CLOSED_NO_SALE.includes(o.status));
+      return '<div class="list-item" onclick="formStaff(\''+s.id+'\')"><div><div class="t">'+esc(s.name)+'</div><div class="s">📞 '+esc(s.phone||'—')+' · Hoa hồng '+s.pct+'%</div></div><div style="text-align:right"><div class="money">'+fmt(os.reduce((x,o)=>x+orderRevenue(o),0))+'</div><div class="s">'+os.length+' đơn (tổng)</div></div></div>';}).join('')
+      || '<div class="empty">Chưa có nhân viên</div>') + '</div>';
+  h += '<div class="sec"><h3>Chương trình / chính sách CK '+(own?'<span class="act" onclick="formPromo()">+ Thêm</span>':'')+'</h3>'
+    + (db.promos.map(p=>'<div class="list-item" onclick="formPromo(\''+p.id+'\')"><div><div class="t">'+esc(p.name)+' '+(p.code?'<span class="tag moi">'+esc(p.code)+'</span> ':'')+(p.active?'':'<span class="tag huy">Tắt</span>')+'</div><div class="s">'+promoLabel(p)+(p.note?' · '+esc(p.note):'')+'</div></div></div>').join('')
+      || '<div class="empty">Chưa có chương trình. VD: "Mua 3 tặng 1", "CK đại lý 15%"</div>') + '</div>';
+  if(own){
+    window._tcView = window._tcView || 'chi';
+    const isThu = window._tcView==='thu';
+    h += '<div class="sec"><h3>Thu - Chi <span class="act" onclick="'+(isThu?'formExpense()':'formIncome()')+'">+ '+(isThu?'Thêm chi':'Thêm thu')+'</span></h3>'
+      + '<div style="padding:0 13px 8px" class="chips" style="margin:0"><div class="chip '+(!isThu?'on':'')+'" onclick="window._tcView=\'chi\';render()">Chi</div><div class="chip '+(isThu?'on':'')+'" onclick="window._tcView=\'thu\';render()">Thu</div></div>';
+    if(!isThu){
+      h += '<table><tr><th>Ngày</th><th>Loại</th><th class="r">Số tiền</th><th></th></tr>'
+      + (db.expenses.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(e=>'<tr><td>'+e.date.slice(5,10).split('-').reverse().join('/')+'</td><td>'+esc(e.type)+' · '+(PAYM[e.method]||'')+(e.note?'<div class="s">'+esc(e.note)+'</div>':'')+'</td><td class="r money">'+fmt(e.amount)+'</td><td class="r"><button class="xdel" onclick="delExpense(\''+e.id+'\')">✕</button></td></tr>').join('')
+        || '<tr><td colspan="4" class="empty">Chưa có khoản chi</td></tr>') + '</table>';
+    } else {
+      h += '<table><tr><th>Ngày</th><th>Loại</th><th class="r">Số tiền</th><th></th></tr>'
+      + (db.incomes.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(i=>'<tr><td>'+i.date.slice(5,10).split('-').reverse().join('/')+'</td><td>'+(i.type==='ban_hang'?'Thu bán hàng':'Thu khác')+' · '+(PAYM[i.method]||'')+(i.note?'<div class="s">'+esc(i.note)+'</div>':'')+'</td><td class="r money">'+fmt(i.amount)+'</td><td class="r"><button class="xdel" onclick="delIncome(\''+i.id+'\')">✕</button></td></tr>').join('')
+        || '<tr><td colspan="4" class="empty">Chưa có khoản thu</td></tr>') + '</table>';
+    }
+    h += '</div>';
+    h += '<div class="sec"><h3>👤 Tài khoản đăng nhập <span class="act" onclick="formUser()">+ Tạo tài khoản</span></h3>'
+      + '<div class="hint" style="padding:6px 13px 0">Nhân viên đăng nhập bằng ID + mật khẩu do Quản lý tạo. Tài khoản bán hàng chỉ thấy đơn của mình, không thấy giá vốn/lợi nhuận/chi phí.</div>'
+      + (db.users.map(u=>'<div class="list-item" onclick="formUser(\''+u.id+'\')"><div><div class="t">'+esc(u.name)+' <span class="tag '+(u.role==='admin'?'xong':'giao')+'">'+roleLabel(u.role)+'</span></div><div class="s">ID: '+esc(u.username)+(u.staffId?(' · gắn NV: '+esc((db.staff.find(s=>s.id===u.staffId)||{}).name||'?')):'')+'</div></div></div>').join('')
+        || '<div class="empty">Chưa có tài khoản</div>') + '</div>';
+    h += '<div class="sec"><h3>Dữ liệu</h3><div style="padding:4px 13px 13px">'
+      + '<button class="btn sm line" onclick="backup()">⬇ Sao lưu (JSON)</button>'
+      + '<button class="btn sm line" onclick="$(\'imp\').click()">⬆ Khôi phục</button>'
+      + '<input type="file" id="imp" accept=".json" style="display:none" onchange="restore(this)">'
+      + '<div class="hint">Nên sao lưu định kỳ hàng tuần. File JSON mở lại được trên máy khác.</div></div></div>';
+  }
+  $('view').innerHTML = h;
+}
+function formStaff(id){
+  if(!isOwner()){ alert('Chỉ chủ tài khoản.'); return; }
+  const s = db.staff.find(x=>x.id===id) || {id:'',name:'',phone:'',pct:5};
+  openSheet(`<h2>${id?'Sửa':'➕ Thêm'} nhân viên</h2>
+  <label>Tên *</label><input id="s_name" value="${esc(s.name)}">
+  <div class="row2"><div><label>SĐT</label><input id="s_phone" value="${esc(s.phone)}"></div>
+  <div><label>% hoa hồng / doanh thu</label><input id="s_pct" type="number" step="0.5" value="${s.pct}"></div></div>
+  <button class="btn" onclick="saveStaff('${id||''}')">Lưu</button>
+  ${id?`<button class="btn danger" onclick="delStaff('${id}')">Xóa</button>`:''}
+  <button class="btn line" onclick="closeSheet()">Đóng</button>`);
+}
+async function saveStaff(id){
+  const d = {name:$('s_name').value.trim(), phone:$('s_phone').value.trim(), pct:+$('s_pct').value||0};
+  if(!d.name){ alert('Cần tên'); return; }
+  if(id) Object.assign(db.staff.find(x=>x.id===id), d); else db.staff.push({id:uid(), ...d});
+  await saveCatalog(); closeSheet(); render();
+}
+async function delStaff(id){ if(!confirm('Xóa nhân viên?')) return; db.staff = db.staff.filter(x=>x.id!==id); db.users = db.users.filter(u=>u.staffId!==id); await saveCatalog(); closeSheet(); render(); }
+function formPromo(id){
+  if(!isOwner()){ alert('Chỉ chủ tài khoản được sửa chương trình.'); return; }
+  const p = db.promos.find(x=>x.id===id) || {id:'',name:'',type:'percent',value:10,buyX:5,giftY:1,code:'',note:'',active:true};
+  window._prDraft = p;
+  openSheet(`<h2>${id?'Sửa':'➕ Thêm'} chương trình</h2>
+  <label>Tên chương trình *</label><input id="pr_name" value="${esc(p.name)}" placeholder="VD: Chiết khấu đại lý cấp 1">
+  <label>Kiểu chương trình</label><select id="pr_type" onchange="drawPromoFields()">
+    <option value="percent" ${p.type==='percent'?'selected':''}>Giảm theo %</option>
+    <option value="amount" ${p.type==='amount'?'selected':''}>Giảm số tiền cố định</option>
+    <option value="gift" ${p.type==='gift'?'selected':''}>🎁 Mua X tặng Y sản phẩm</option>
+    <option value="freeship" ${p.type==='freeship'?'selected':''}>🚚 Miễn phí ship</option>
+  </select>
+  <div id="pr_fields"></div>
+  <label>Mã giảm giá (khách nhập khi mua — Shopee/TikTok/Facebook)</label><input id="pr_code" value="${esc(p.code||'')}" placeholder="VD: ANVIFA10 (bỏ trống nếu không dùng mã)" autocapitalize="characters">
+  <label>Đang áp dụng?</label><select id="pr_act"><option value="1" ${p.active?'selected':''}>Bật</option><option value="0" ${!p.active?'selected':''}>Tắt</option></select>
+  <label>Ghi chú chính sách</label><input id="pr_note" value="${esc(p.note)}" placeholder="VD: đơn từ 10 chai, áp dụng T7-T9">
+  <button class="btn" onclick="savePromo('${id||''}')">Lưu</button>
+  ${id?`<button class="btn danger" onclick="delPromo('${id}')">Xóa</button>`:''}
+  <button class="btn line" onclick="closeSheet()">Đóng</button>`);
+  drawPromoFields();
+}
+function drawPromoFields(){
+  const t = $('pr_type').value, p = window._prDraft||{};
+  if(t==='percent') $('pr_fields').innerHTML = '<label>Giảm bao nhiêu %</label><input id="pr_val" type="number" value="'+(p.type==='percent'?(p.value||0):10)+'">';
+  else if(t==='amount') $('pr_fields').innerHTML = '<label>Giảm số tiền (đ)</label><input id="pr_val" type="number" value="'+(p.type==='amount'?(p.value||0):0)+'">';
+  else if(t==='gift') $('pr_fields').innerHTML = '<div class="row2"><div><label>Khách mua (X) *</label><input id="pr_buyx" type="number" min="1" value="'+(p.buyX||5)+'"></div><div><label>Tặng thêm (Y) *</label><input id="pr_gifty" type="number" min="1" value="'+(p.giftY||1)+'"></div></div><div class="hint">🎁 Khi lên đơn: nhập đủ cả X+Y sản phẩm vào đơn (để kho trừ đúng số thực xuất). Hệ thống tự trừ tiền Y sản phẩm — tính theo giá sản phẩm rẻ nhất trong đơn.</div>';
+  else $('pr_fields').innerHTML = '<div class="hint">🚚 Không trừ tiền hàng của khách. Đơn được ghi nhận dùng mã freeship — khi lên đơn nhớ điền "Phí vận chuyển" (shop chịu) để lợi nhuận trừ đúng.</div>';
+}
+async function savePromo(id){
+  const t = $('pr_type').value;
+  const d = {name:$('pr_name').value.trim(), type:t, value:0, buyX:0, giftY:0, code:$('pr_code').value.trim().toUpperCase(), active:$('pr_act').value==='1', note:$('pr_note').value.trim()};
+  if(t==='percent'||t==='amount'){ d.value = +$('pr_val').value||0; if(!d.value){ alert('Nhập giá trị giảm'); return; } }
+  if(t==='gift'){ d.buyX = +$('pr_buyx').value||0; d.giftY = +$('pr_gifty').value||0; if(d.buyX<1||d.giftY<1){ alert('Điền số lượng "Khách mua (X)" và "Tặng thêm (Y)"'); return; } }
+  if(!d.name){ alert('Cần tên chương trình'); return; }
+  if(d.code && db.promos.some(x=>x.id!==id && (x.code||'').toUpperCase()===d.code)){ alert('Mã "'+d.code+'" đã được dùng cho chương trình khác.'); return; }
+  if(id) Object.assign(db.promos.find(x=>x.id===id), d); else db.promos.push({id:uid(), ...d});
+  await saveCatalog(); closeSheet(); render();
+}
+async function delPromo(id){ if(!confirm('Xóa chương trình?')) return; db.promos = db.promos.filter(x=>x.id!==id); await saveCatalog(); closeSheet(); render(); }
+function formExpense(){
+  if(!isOwner()) return;
+  openSheet(`<h2>➕ Thêm chi phí</h2>
+  <label>Ngày</label><input id="x_date" type="date" value="${today()}">
+  <label>Loại chi phí</label><select id="x_type" onchange="$('x_warn').style.display=this.value==='Chi nhập hàng'?'block':'none'"><option>Lương cứng nhân viên</option><option>Quảng cáo Facebook</option><option>Vật tư đóng gói</option><option>Thuê kho / mặt bằng</option><option>Chi nhập hàng</option><option>Khác</option></select>
+  <div id="x_warn" class="hint" style="display:none;color:var(--red)">⚠ Giá vốn hàng bán đã được trừ tự động qua từng đơn hàng. Chỉ chọn mục này nếu khoản tiền KHÔNG liên quan hàng đã/sẽ bán (vd: hàng hỏng, mất mát), tránh trừ trùng vào lợi nhuận.</div>
+  <label>Phương thức</label><select id="x_method">${Object.entries(PAYM).filter(([k])=>k!=='cod'&&k!=='san').map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select>
+  <label>Số tiền (đ) *</label><input id="x_amt" type="number">
+  <label>Ghi chú</label><input id="x_note">
+  <button class="btn" onclick="saveExpense()">Lưu chi phí</button>
+  <button class="btn line" onclick="closeSheet()">Đóng</button>`);
+}
+async function saveExpense(){
+  const amt = +$('x_amt').value; if(!amt){ alert('Nhập số tiền'); return; }
+  const e = {id:uid(), date:$('x_date').value, type:$('x_type').value, method:$('x_method').value, amount:amt, note:$('x_note').value.trim()};
+  db.expenses.push(e); await saveRec('expenses', e); closeSheet(); render();
+}
+async function delExpense(id){ db.expenses = db.expenses.filter(x=>x.id!==id); await delRec('expenses', id); render(); }
+function formIncome(){
+  if(!isOwner()) return;
+  openSheet(`<h2>➕ Thêm khoản thu</h2>
+  <label>Ngày</label><input id="ic_date" type="date" value="${today()}">
+  <label>Loại thu</label><select id="ic_type"><option value="khac">Thu khác</option></select>
+  <label>Phương thức</label><select id="ic_method">${Object.entries(PAYM).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select>
+  <label>Số tiền (đ) *</label><input id="ic_amt" type="number">
+  <label>Ghi chú</label><input id="ic_note">
+  <button class="btn" onclick="saveIncome()">Lưu khoản thu</button>
+  <button class="btn line" onclick="closeSheet()">Đóng</button>`);
+}
+async function saveIncome(){
+  const amt = +$('ic_amt').value; if(!amt){ alert('Nhập số tiền'); return; }
+  const i = {id:uid(), date:$('ic_date').value, type:$('ic_type').value, method:$('ic_method').value, amount:amt, note:$('ic_note').value.trim()};
+  db.incomes.push(i); await saveRec('incomes', i); closeSheet(); render();
+}
+async function delIncome(id){ db.incomes = db.incomes.filter(x=>x.id!==id); await delRec('incomes', id); render(); }
+/* ================= TAI KHOAN DANG NHAP ================= */
+function formUser(id){
+  if(!isOwner()) return;
+  const u = db.users.find(x=>x.id===id);
+  if(u){
+    openSheet('<h2>Tài khoản: '+esc(u.name)+'</h2>'
+    +'<div class="hint">ID đăng nhập: <b>'+esc(u.username)+'</b> · Vai trò: '+roleLabel(u.role)+'</div>'
+    +'<label>Đặt mật khẩu mới (bỏ trống = giữ nguyên)</label><div class="pwrap"><input id="u_pass" type="password"><button type="button" class="pweye" onclick="togglePw(&quot;u_pass&quot;,this)">👁</button></div>'
+    +'<button class="btn" onclick="saveUser(\''+u.id+'\')">Lưu</button>'
+    +(u.role!=='admin'? '<button class="btn danger" onclick="delUser(\''+u.id+'\')">Xóa tài khoản</button>':'')
+    +'<button class="btn line" onclick="closeSheet()">Đóng</button>');
+    return;
+  }
+  openSheet('<h2>➕ Tạo tài khoản mới</h2>'
+  +'<div id="u_staffwrap"></div>'
+  +'<label>Tên hiển thị *</label><input id="u_name" placeholder="VD: Sale Lan">'
+  +'<label>Tên đăng nhập (ID) *</label><input id="u_user" autocapitalize="off" placeholder="VD: sale01">'
+  +'<label>Mật khẩu *</label><div class="pwrap"><input id="u_pass" type="password"><button type="button" class="pweye" onclick="togglePw(&quot;u_pass&quot;,this)">👁</button></div>'
+  +'<div class="hint">Đưa ID + mật khẩu này cho người dùng. Họ đăng nhập ở cổng Bán hàng trên màn hình chính.</div>'
+  +'<button class="btn" onclick="saveUser(\'\')">Tạo tài khoản</button>'
+  +'<button class="btn line" onclick="closeSheet()">Đóng</button>');
+  drawUserRole();
+}
+function drawUserRole(){
+  if(!db.staff.length){ $('u_staffwrap').innerHTML = '<div class="hint">⚠ Chưa có nhân viên sale nào. Vào mục "Nhân viên sale" ở trên để thêm trước.</div>'; return; }
+  $('u_staffwrap').innerHTML = '<label>Gắn với nhân viên *</label><select id="u_staff">'+db.staff.map(s=>'<option value="'+s.id+'">'+esc(s.name)+' ('+s.pct+'%)</option>').join('')+'</select>';
+}
+async function saveUser(id){
+  if(id){
+    const u = db.users.find(x=>x.id===id), p = $('u_pass').value;
+    if(p){ if(p.length<4){ alert('Mật khẩu tối thiểu 4 ký tự'); return; } u.pass = hp(p); }
+    await saveCatalog(); closeSheet(); render(); return;
+  }
+  const role = 'sale', name = $('u_name').value.trim(), un = $('u_user').value.trim().toLowerCase(), p = $('u_pass').value;
+  if(!name||!un||!p){ alert('Điền đủ thông tin'); return; }
+  if(p.length<4){ alert('Mật khẩu tối thiểu 4 ký tự'); return; }
+  if(db.users.some(x=>x.username===un)){ alert('ID này đã tồn tại'); return; }
+  if(!db.staff.length){ alert('Chưa có nhân viên sale để gắn.'); return; }
+  const staffId = $('u_staff').value;
+  db.users.push({id:uid(), username:un, pass:hp(p), role, name, staffId});
+  await saveCatalog(); closeSheet(); render();
+}
+async function delUser(id){
+  if(!confirm('Xóa tài khoản đăng nhập này? (Hồ sơ nhân viên và đơn hàng vẫn giữ nguyên)')) return;
+  db.users = db.users.filter(x=>x.id!==id); await saveCatalog(); closeSheet(); render();
+}
+/* ================= XUAT CSV & SAO LUU ================= */
+function dl(name, content, type){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(["\uFEFF"+content], {type}));
+  a.download = name; a.click();
+}
+function exportCSV(){
+  if(!isOwner()) return;
+  const rows = [['Mã đơn','Ngày','Kênh','Khách','SĐT','Địa chỉ','Nhân viên','Sản phẩm','Tiền hàng','Chiết khấu','Mã giảm giá','Khách trả / Thực nhận','Giá vốn','Ship','Đóng gói','Hoa hồng','Lợi nhuận','Phương thức TT','Đã thu','Trạng thái']];
+  db.orders.forEach(o=>{
+    const c = db.customers.find(x=>x.id===o.custId)||{}, st = db.staff.find(x=>x.id===o.staffId)||{};
+    rows.push([o.code, o.date.slice(0,10), CHANNELS[o.channel]||'Trực tiếp', c.name||'', c.phone||'', c.address||'', st.name||'',
+      o.items.map(i=>i.name+' x'+i.qty).join('; '), orderSubtotal(o), Math.round(orderDiscount(o)), o.promoCode||'', Math.round(orderRevenue(o)),
+      orderCOGS(o), o.ship||0, o.pack||0, o.comm||0, Math.round(orderProfit(o)), PAYM[o.payMethod]||'', o.payStatus==='roi'?'Có':'Chưa', STATUS[o.status]]);
+  });
+  dl('ANVIFA-donhang.csv', rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(',')).join('\n'), 'text/csv');
+}
+function backup(){ dl('ANVIFA-saoluu-'+today()+'.json', JSON.stringify(db), 'application/json'); }
+function restore(inp){
+  const f = inp.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = async () => { try{ const d = JSON.parse(r.result);
+    if(!d.products||!d.orders) throw 0;
+    if(!confirm('Khôi phục sẽ THAY THẾ toàn bộ dữ liệu hiện tại (kể cả trên các máy khác). Tiếp tục?')) return;
+    Object.assign(db, {products:d.products||[], customers:d.customers||[], staff:d.staff||[], suppliers:d.suppliers||[], promos:d.promos||[], users:d.users||[]});
+    ensureAdminSeed(); await saveCatalog();
+    for(const name of RECORD_COLLECTIONS){
+      db[name] = d[name]||[];
+      for(const rec of db[name]){ await saveRec(name, rec); }
+    }
+    alert('Khôi phục xong'); render();
+    }catch(e){ alert('File không hợp lệ'); console.error(e); } };
+  r.readAsText(f);
+}
+window.startApp = loadDB;
+window.__appBooted = false;
+setTimeout(function(){
+  if(window.__appBooted) return;
+  $('sync').textContent = 'lỗi kết nối!';
+  $('view').innerHTML = '<div class="sec" style="margin-top:20px;padding:20px 16px">'
+    + '<h2 style="color:var(--red);font-size:16px">⚠ Không tải được dữ liệu</h2>'
+    + '<div class="hint" style="margin-top:8px;line-height:1.7">Ứng dụng cần kết nối Internet để tải Firebase. Một vài nguyên nhân thường gặp:<br><br>'
+    + '<b>1.</b> Bạn đang mở trực tiếp file này bằng cách nhấp đúp (đường dẫn bắt đầu bằng <code>file://</code>) — trình duyệt sẽ CHẶN không cho tải. Cách khắc phục: đưa file này lên một website/hosting (VD: Firebase Hosting, GitHub Pages) rồi mở bằng đường dẫn <code>https://…</code>, hoặc nhờ người hỗ trợ kỹ thuật chạy 1 local server (VD: <code>python -m http.server</code>) rồi mở qua <code>http://localhost:...</code>.<br><br>'
+    + '<b>2.</b> Thiết bị đang mất mạng / mạng chặn tên miền <code>gstatic.com</code>, <code>firebaseio.com</code> (mạng công ty, trình chặn quảng cáo…). Thử tắt VPN/trình chặn quảng cáo hoặc đổi mạng khác.<br><br>'
+    + '<b>3.</b> Firebase project trong app đã bị xoá/đổi cấu hình.<br><br>'
+    + 'Sau khi khắc phục, hãy tải lại trang (kéo xuống để refresh hoặc bấm F5).</div></div>';
+}, 8000);
+</script>
+
+<!-- ======================================================================
+     KHO DỮ LIỆU CHUNG (Firebase) — mỗi loại dữ liệu 1 vùng lưu trữ riêng
+     để nhiều người dùng cùng lúc không ghi đè mất dữ liệu của nhau.
+     Cách bật: điền 6 giá trị vào firebaseConfig bên dưới (xem hướng dẫn kèm theo).
+     CHƯA điền gì thì app tự chạy bằng bộ nhớ trình duyệt (chỉ 1 máy, để test).
+====================================================================== -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
+// ĐIỀN 6 GIÁ TRỊ NÀY TỪ FIREBASE CONSOLE (Project settings → General → Your apps → SDK config)
+const firebaseConfig = {
+  apiKey: "AIzaSyDHDlqO_QrwOSiBf2SUIIQGC_7w0zQbg3g",
+  authDomain: "anvifa-app.firebaseapp.com",
+  projectId: "anvifa-app",
+  storageBucket: "anvifa-app.firebasestorage.app",
+  messagingSenderId: "903165167895",
+  appId: "1:903165167895:web:7387f2bf78eb95a23c8f52"
+};
+
+const useFirebase = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("PASTE");
+const RECORD_COLLS = ['orders','entries','quotes','adjustments','incomes','expenses','labelEntries'];
+
+if(useFirebase){
+  const app = initializeApp(firebaseConfig);
+  const fdb = getFirestore(app);
+  const auth = getAuth(app);
+  const catalogRef = doc(fdb, "anvifa_meta", "catalog");
+
+  const authReady = new Promise((resolve)=>{
+    const unsub = onAuthStateChanged(auth, (u)=>{ if(u){ unsub(); resolve(); } });
+    signInAnonymously(auth).catch(err=>{ console.error("Firebase auth lỗi:", err); document.getElementById('sync').textContent='lỗi kết nối!'; });
+  });
+
+  let lastCatalogPush = null;
+  const lastRecPush = {};
+
+  window.dataApi = {
+    async getCatalog(){
+      await authReady;
+      const snap = await getDoc(catalogRef);
+      if(!snap.exists()) throw new Error('empty');
+      return snap.data();
+    },
+    async setCatalog(obj){
+      await authReady;
+      lastCatalogPush = JSON.stringify(obj);
+      await setDoc(catalogRef, obj);
+    },
+    async getRecords(name){
+      await authReady;
+      const snap = await getDocs(collection(fdb, 'anvifa_'+name));
+      return snap.docs.map(d=>d.data());
+    },
+    async setRecord(name, rec){
+      await authReady;
+      lastRecPush[name+':'+rec.id] = JSON.stringify(rec);
+      await setDoc(doc(fdb, 'anvifa_'+name, rec.id), rec);
+    },
+    async delRecord(name, id){
+      await authReady;
+      await deleteDoc(doc(fdb, 'anvifa_'+name, id));
+    },
+    async getSession(){
+      const v = localStorage.getItem('anvifa_session');
+      if(!v) throw new Error('empty');
+      return v;
+    },
+    async setSession(v){ localStorage.setItem('anvifa_session', v); },
+    subscribeCatalog(cb){
+      onSnapshot(catalogRef, snap=>{
+        if(!snap.exists()){ cb(null); return; }
+        const raw = JSON.stringify(snap.data());
+        if(raw !== lastCatalogPush) cb(snap.data());
+      });
+    },
+    subscribeCollection(name, cb){
+      onSnapshot(collection(fdb, 'anvifa_'+name), snap=>{
+        const list = snap.docs.map(d=>d.data());
+        cb(list);
+      });
+    }
+  };
+  authReady.then(()=>{ window.startApp(); });
+} else {
+  // Chưa cấu hình Firebase -> chạy tạm bằng bộ nhớ trình duyệt (chỉ 1 máy)
+  const lsKey = n => 'anvifa_local_'+n;
+  window.dataApi = {
+    async getCatalog(){ const v = localStorage.getItem(lsKey('catalog')); if(v===null) throw new Error('empty'); return JSON.parse(v); },
+    async setCatalog(obj){ localStorage.setItem(lsKey('catalog'), JSON.stringify(obj)); },
+    async getRecords(name){ const v = localStorage.getItem(lsKey(name)); return v? JSON.parse(v) : []; },
+    async setRecord(name, rec){ const list = await this.getRecords(name); const i = list.findIndex(x=>x.id===rec.id); if(i>=0) list[i]=rec; else list.push(rec); localStorage.setItem(lsKey(name), JSON.stringify(list)); },
+    async delRecord(name, id){ const list = await this.getRecords(name); localStorage.setItem(lsKey(name), JSON.stringify(list.filter(x=>x.id!==id))); },
+    async getSession(){ const v = localStorage.getItem('anvifa_session'); if(!v) throw new Error('empty'); return v; },
+    async setSession(v){ localStorage.setItem('anvifa_session', v); },
+    subscribeCatalog(cb){ this.getCatalog().then(cb).catch(()=>cb(null)); },
+    subscribeCollection(name, cb){ this.getRecords(name).then(list=>cb(list)); }
+  };
+  console.warn('ANVIFA: chưa cấu hình Firebase — dữ liệu chỉ lưu trên máy này. Xem hướng dẫn đi kèm để bật đồng bộ chung.');
+  window.startApp();
+}
+</script>
+</body>
+</html>
