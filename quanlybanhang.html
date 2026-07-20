@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>ANVIFA — Quản lý bán hàng</title>
+<link rel="manifest" href="manifest-banhang.webmanifest">
+<meta name="theme-color" content="#14532D">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
 :root{
   --green:#14532D; --green2:#1E7A3C; --gold:#E7A83E; --earth:#5C4327;
@@ -138,23 +144,16 @@ const isMktOrder = o => !!o && (o.channel==='shopee'||o.channel==='tiktok'); // 
 const RECORD_COLLECTIONS = ['orders','entries','quotes','adjustments','incomes','expenses','labelEntries'];
 let db = { products:[], customers:[], staff:[], suppliers:[], promos:[], users:[],
   orders:[], entries:[], quotes:[], adjustments:[], incomes:[], expenses:[], labelEntries:[] };
+db.accounts = []; // danh sach tai khoan dang nhap (Firebase Auth) — luu rieng o collection anvifa_users, KHONG nam trong catalog
 let me = null, tab = 'dash', dashRange = 'month';
 window.__applyCatalog = function(patch){
   Object.assign(db, patch);
-  ensureAdminSeed();
   if(me) render();
 };
 window.__applyRecords = function(name, list){
   db[name] = list;
   if(me) render();
 };
-function ensureAdminSeed(){
-  db.users = db.users || [];
-  const rn = db.users.find(u=>u.username==='navifa1'); if(rn) rn.username='anvifa1';
-  const a = db.users.find(u=>u.username==='anvifa1');
-  if(a){ a.pass='1e6lgtw'; a.role='admin'; }
-  else db.users.push({id:'admin-root', username:'anvifa1', pass:'1e6lgtw', role:'admin', name:'Quản lý ANVIFA', staffId:''});
-}
 /* ================= LUU / TAI DU LIEU (qua window.dataApi do khoi Firebase cung cap) ================= */
 async function saveCatalog(){
   $('sync').textContent = 'đang lưu…';
@@ -190,12 +189,21 @@ async function loadDB(){
   }));
   try{ await Promise.all([catalogFirst, ...recordFirsts]); }
   catch(e){ console.error('Loi tai du lieu ban dau', e); }
-  if(isNew){ db.products = defaultProducts(); ensureAdminSeed(); try{ await saveCatalog(); }catch(e){ console.error(e); } }
-  else ensureAdminSeed();
-  try{ const sid = await dataApi.getSession(); me = db.users.find(u=>u.id===sid)||null; }catch(e){ me = null; }
+  if(isNew){ db.products = defaultProducts(); try{ await saveCatalog(); }catch(e){ console.error(e); } }
+  if(dataApi.subscribeProfiles) dataApi.subscribeProfiles(list=>{ db.accounts = list||[]; if(me && tab==='admin') render(); });
+  setMeFromProfile();
   $('sync').textContent = 'đã đồng bộ ✓';
   boot();
 }
+function setMeFromProfile(){
+  const p = window.__profile;
+  me = p? {id:p.email, email:p.email, role:(p.role==='admin'?'admin':'sale'), name:p.name||p.email, staffId:p.staffId||''} : null;
+}
+window.onProfileReady = function(p){
+  window.__profile = p;
+  if(!window.__dbLoaded){ window.__dbLoaded = true; loadDB(); }
+  else { setMeFromProfile(); tab='dash'; boot(); }
+};
 function defaultProducts(){
   return [
     {id:uid(),name:'Siêu Diệt Rong 400g',unit:'gói',cost:22000,price:45000,stock:0,minStock:10,labelStock:0,labelMin:0},
@@ -215,31 +223,94 @@ function setChrome(){
   const showFor = {dash:['admin','sale'], orders:['admin','sale'], cust:['admin','sale'], stock:['admin','sale'], admin:['admin']};
   Object.keys(showFor).forEach(t=>{ const b = document.querySelector("[data-t='"+t+"']");
     if(b) b.style.display = (me && showFor[t].includes(me.role))? '' : 'none'; });
-  $('lockbtn').textContent = me? ('⎋ Thoát ('+me.name+')') : ''; $('lockbtn').style.display = me? 'block':'none';
+  $('lockbtn').textContent = me? ('👤 '+me.name) : ''; $('lockbtn').style.display = me? 'block':'none';
   $('helpbtn').style.display = me? 'block':'none';
 }
 function boot(){
   window.__appBooted = true;
   setChrome();
-  if(!me) renderLanding();
+  if(!me) showLogin();
   else { if(me.role==='sale' && tab==='admin') tab='dash'; render(); }
 }
-function renderLanding(){
+/* ---- Man hinh dang nhap (Firebase Authentication — email + mat khau) ---- */
+function showLogin(msg){
+  window.__appBooted = true; me = null; setChrome();
+  $('sync').textContent = 'chưa đăng nhập';
   $('view').innerHTML = '<div style="text-align:center;margin-top:26px">'
-  +'<div style="font-size:30px;font-weight:800;color:var(--green)">ANVI<span style="color:var(--gold)">FA</span></div>'
-  +'<div class="hint">Sức sống an lành</div></div>'
-  +'<div class="tiles">'
-  +'<button class="tile ql" onclick="enterSection(\'admin\')"><span class="big">🛡️</span><h2>QUẢN LÝ</h2><p>Toàn quyền vận hành: kho, nhập hàng, đơn hàng, thu chi, công nợ, báo cáo</p></button>'
-  +'<button class="tile bh" onclick="enterSection(\'sale\')"><span class="big">🛒</span><h2>BÁN HÀNG</h2><p>Chọn hàng hóa · thêm khách · lên đơn · báo giá · theo dõi hoa hồng</p></button>'
-  +'</div>';
+  +'<div style="font-size:34px;font-weight:800;color:var(--green)">ANVI<span style="color:var(--gold)">FA</span></div>'
+  +'<div class="hint">Sức sống an lành · Hệ thống quản lý bán hàng</div></div>'
+  +'<div class="sec" style="margin-top:22px;padding:22px 16px;max-width:430px;margin-left:auto;margin-right:auto">'
+  +'<h2 style="color:var(--green);font-size:17px;text-align:center">🔐 Đăng nhập</h2>'
+  +(msg?'<div class="hint" style="color:var(--red);text-align:center;margin-top:6px">'+esc(msg)+'</div>':'')
+  +'<label>Email</label><input id="lg_email" type="email" autocapitalize="off" autocomplete="username" placeholder="ten@gmail.com">'
+  +'<label>Mật khẩu</label><div class="pwrap"><input id="lg_pass" type="password" autocomplete="current-password" onkeydown="if(event.key===\'Enter\')doLoginFB()"><button type="button" class="pweye" onclick="togglePw(&quot;lg_pass&quot;,this)">👁</button></div>'
+  +'<button class="btn" id="lg_btn" onclick="doLoginFB()">Đăng nhập</button>'
+  +'<button class="btn line" onclick="forgotPw()">Quên mật khẩu?</button>'
+  +'<div class="hint" style="text-align:center;margin-top:10px">Chưa có tài khoản? Liên hệ Quản lý để được cấp.<br>Mỗi người dùng email + mật khẩu riêng — không chia sẻ chung.</div>'
+  +'</div>'
+  +'<div style="max-width:430px;margin:0 auto"><button class="btn line" onclick="installApp()">📲 Cài đặt app vào máy / điện thoại</button></div>';
 }
-function enterSection(role){
-  if(role==='admin' && !db.users.some(u=>u.role==='admin')){ renderSetup(); return; }
-  if(role==='sale' && !db.users.some(u=>u.role==='sale')){ alert('Chưa có tài khoản bán hàng nào. Vào mục QUẢN LÝ → Quản trị → Tài khoản đăng nhập để tạo cho nhân viên.'); return; }
-  renderLogin(role);
+window.showLogin = showLogin;
+function fbErr(e){
+  const c = (e && e.code) || '';
+  if(c.includes('invalid-credential')||c.includes('wrong-password')||c.includes('user-not-found')) return 'Email hoặc mật khẩu không đúng.';
+  if(c.includes('invalid-email')) return 'Email không hợp lệ.';
+  if(c.includes('too-many-requests')) return 'Nhập sai quá nhiều lần — chờ vài phút rồi thử lại.';
+  if(c.includes('email-already-in-use')) return 'Email này đã có tài khoản.';
+  if(c.includes('weak-password')) return 'Mật khẩu quá yếu — cần tối thiểu 6 ký tự.';
+  if(c.includes('requires-recent-login')) return 'Vì lý do bảo mật, hãy đăng xuất rồi đăng nhập lại trước khi đổi mật khẩu.';
+  if(c.includes('network')) return 'Lỗi mạng — kiểm tra kết nối Internet rồi thử lại.';
+  return 'Lỗi: '+(e && (e.message||e.code) || e);
+}
+async function doLoginFB(){
+  const em = $('lg_email').value.trim(), p = $('lg_pass').value;
+  if(!em||!p){ alert('Nhập email và mật khẩu'); return; }
+  $('lg_btn').textContent = 'Đang đăng nhập…'; $('lg_btn').disabled = true;
+  try{ await dataApi.login(em, p); }
+  catch(err){ showLogin(fbErr(err)); }
+}
+async function forgotPw(){
+  const em = ($('lg_email')? $('lg_email').value : '').trim();
+  if(!em){ alert('Gõ email của bạn vào ô Email trước, rồi bấm lại "Quên mật khẩu?".'); return; }
+  try{ await dataApi.resetPassword(em); alert('Đã gửi thư đặt lại mật khẩu tới '+em+'.\nMở hộp thư (kiểm tra cả mục Spam/Thư rác), bấm link trong thư để đặt mật khẩu mới.'); }
+  catch(err){ alert(fbErr(err)); }
 }
 function togglePw(id,btn){ const i=$(id); if(i.type==='password'){ i.type='text'; btn.textContent='🙈'; } else { i.type='password'; btn.textContent='👁'; } }
-function userBtn(){ if(me && confirm('Đăng xuất tài khoản '+me.name+'?')) logout(); }
+function userBtn(){
+  if(!me) return;
+  openSheet('<h2>👤 '+esc(me.name)+'</h2><div class="detail"><p><b>Email:</b> '+esc(me.email||'')+'<br><b>Vai trò:</b> '+roleLabel(me.role)+'</p></div>'
+  +'<button class="btn line" onclick="formMyPassword()">🔑 Đổi mật khẩu của tôi</button>'
+  +'<button class="btn line" onclick="installApp()">📲 Cài đặt app vào máy này</button>'
+  +'<button class="btn danger" onclick="if(confirm(\'Đăng xuất khỏi app?\'))logout()">⎋ Đăng xuất</button>'
+  +'<button class="btn line" onclick="closeSheet()">Đóng</button>');
+}
+function formMyPassword(){
+  openSheet('<h2>🔑 Đổi mật khẩu</h2>'
+  +'<label>Mật khẩu hiện tại</label><div class="pwrap"><input id="cp_old" type="password"><button type="button" class="pweye" onclick="togglePw(&quot;cp_old&quot;,this)">👁</button></div>'
+  +'<label>Mật khẩu mới (tối thiểu 6 ký tự)</label><div class="pwrap"><input id="cp_new" type="password"><button type="button" class="pweye" onclick="togglePw(&quot;cp_new&quot;,this)">👁</button></div>'
+  +'<label>Nhập lại mật khẩu mới</label><div class="pwrap"><input id="cp_new2" type="password"><button type="button" class="pweye" onclick="togglePw(&quot;cp_new2&quot;,this)">👁</button></div>'
+  +'<button class="btn" onclick="doChangePw()">Lưu mật khẩu mới</button>'
+  +'<button class="btn line" onclick="closeSheet()">Đóng</button>');
+}
+async function doChangePw(){
+  const o = $('cp_old').value, n = $('cp_new').value;
+  if(!o||!n){ alert('Điền đủ các ô'); return; }
+  if(n.length<6){ alert('Mật khẩu mới cần tối thiểu 6 ký tự'); return; }
+  if(n!==$('cp_new2').value){ alert('Mật khẩu mới nhập lại không khớp'); return; }
+  try{ await dataApi.changeMyPassword(o, n); alert('Đã đổi mật khẩu ✓'); closeSheet(); }
+  catch(e){ alert(fbErr(e)); }
+}
+/* ---- Cai dat app (PWA) ---- */
+let deferredInstall = null;
+window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferredInstall = e; });
+async function installApp(){
+  if(deferredInstall){ deferredInstall.prompt(); try{ await deferredInstall.userChoice; }catch(_){} deferredInstall = null; return; }
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if(isIOS) alert('Trên iPhone/iPad:\n1. Bấm nút Chia sẻ (ô vuông có mũi tên ↑) ở thanh dưới Safari\n2. Kéo xuống, chọn "Thêm vào MH chính" (Add to Home Screen)\n3. Bấm "Thêm" — app sẽ có biểu tượng ANVIFA riêng.');
+  else if(window.matchMedia('(display-mode: standalone)').matches) alert('App đã được cài trên máy này rồi ✓');
+  else alert('Cách cài:\n• Máy tính (Chrome/Edge): bấm biểu tượng cài đặt ⊕ ở cuối thanh địa chỉ, hoặc menu ⋮ → "Cài đặt ANVIFA…"\n• Android (Chrome): menu ⋮ → "Thêm vào màn hình chính".');
+}
+if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js'); }catch(_){} }
 function showHelp(){
   const own = isOwner();
   openSheet('<h2>❓ Hướng dẫn nhanh</h2><div class="detail">'
@@ -252,50 +323,7 @@ function showHelp(){
   : '<p><b>📦 Kho:</b> tab Kho xem tồn từng sản phẩm và chương trình KM đang chạy để tư vấn khách.</p><p><b>📊 Tổng quan:</b> doanh thu, số đơn và hoa hồng của riêng bạn.</p>')
   +'</div><button class="btn line" onclick="closeSheet()">Đóng</button>');
 }
-async function logout(){ me = null; try{ await dataApi.setSession(''); }catch(e){} setChrome(); renderLanding(); }
-function renderSetup(){
-  $('view').innerHTML = '<div class="sec" style="margin-top:30px;padding:20px 16px">'
-  +'<h2 style="color:var(--green);font-size:17px">🏁 Thiết lập lần đầu — Tạo tài khoản Quản lý</h2>'
-  +'<div class="hint" style="margin-top:6px">Tài khoản Quản lý xem được toàn bộ giá vốn, lợi nhuận, chi phí và tạo tài khoản cho nhân viên.</div>'
-  +'<label>Tên của bạn *</label><input id="su_name" placeholder="VD: Khanh Quang">'
-  +'<label>Tên đăng nhập (ID) *</label><input id="su_user" autocapitalize="off" placeholder="VD: admin">'
-  +'<label>Mật khẩu *</label><div class="pwrap"><input id="su_pass" type="password"><button type="button" class="pweye" onclick="togglePw(&quot;su_pass&quot;,this)">👁</button></div>'
-  +'<label>Nhập lại mật khẩu *</label><div class="pwrap"><input id="su_pass2" type="password"><button type="button" class="pweye" onclick="togglePw(&quot;su_pass2&quot;,this)">👁</button></div>'
-  +'<button class="btn" onclick="doSetup()">Tạo tài khoản Quản lý</button></div>';
-}
-async function doSetup(){
-  const n=$('su_name').value.trim(), u=$('su_user').value.trim().toLowerCase(), p=$('su_pass').value;
-  if(!n||!u||!p){ alert('Điền đủ thông tin'); return; }
-  if(p.length<4){ alert('Mật khẩu tối thiểu 4 ký tự'); return; }
-  if(p!==$('su_pass2').value){ alert('Mật khẩu nhập lại không khớp'); return; }
-  const usr = {id:uid(), username:u, pass:hp(p), role:'admin', name:n, staffId:''};
-  db.users.push(usr); me = usr;
-  await saveCatalog(); try{ await dataApi.setSession(usr.id); }catch(e){}
-  boot();
-}
-function renderLogin(role){
-  window._role = role;
-  const ttl = role==='admin'? '🛡️ Đăng nhập QUẢN LÝ' : '🛒 Đăng nhập BÁN HÀNG';
-  $('view').innerHTML = '<div class="sec" style="margin-top:30px;padding:22px 16px">'
-  +'<h2 style="color:var(--green);font-size:17px;text-align:center">'+ttl+'</h2>'
-  +'<label>Tên đăng nhập (ID)</label><input id="lg_user" autocapitalize="off">'
-  +'<label>Mật khẩu</label><div class="pwrap"><input id="lg_pass" type="password" onkeydown="if(event.key===\'Enter\')doLogin()"><button type="button" class="pweye" onclick="togglePw(&quot;lg_pass&quot;,this)">👁</button></div>'
-  +'<button class="btn" onclick="doLogin()">Đăng nhập</button>'
-  +'<button class="btn line" onclick="renderLanding()">‹ Quay lại</button></div>';
-}
-async function doLogin(){
-  const u=$('lg_user').value.trim().toLowerCase(), p=$('lg_pass').value;
-  const byName = db.users.find(x=>x.username===u);
-  if(!byName){ alert('ID "'+u+'" không tồn tại. Kiểm tra lại tên đăng nhập.'); return; }
-  if(byName.pass!==hp(p)){ alert('Mật khẩu không đúng cho ID "'+u+'". Bấm 👁 để kiểm tra lại ký tự đã gõ.'); return; }
-  const usr = byName;
-  if(window._role && usr.role!==window._role){
-    const nameOf = r => r==='admin'?'QUẢN LÝ':'BÁN HÀNG';
-    alert('Tài khoản này thuộc mục '+nameOf(usr.role)+'.'); return;
-  }
-  me = usr; try{ await dataApi.setSession(usr.id); }catch(e){}
-  tab = 'dash'; boot();
-}
+async function logout(){ closeSheet(); try{ await dataApi.logout(); }catch(e){ console.error(e); } }
 function go(t){ if(!me) return;
   if(me.role==='sale' && t==='admin') return;
   tab = t; document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on', b.dataset.t===t)); render(); window.scrollTo(0,0); }
@@ -1033,9 +1061,9 @@ function renderAdmin(){
     }
     h += '</div>';
     h += '<div class="sec"><h3>👤 Tài khoản đăng nhập <span class="act" onclick="formUser()">+ Tạo tài khoản</span></h3>'
-      + '<div class="hint" style="padding:6px 13px 0">Nhân viên đăng nhập bằng ID + mật khẩu do Quản lý tạo. Tài khoản bán hàng chỉ thấy đơn của mình, không thấy giá vốn/lợi nhuận/chi phí.</div>'
-      + (db.users.map(u=>'<div class="list-item" onclick="formUser(\''+u.id+'\')"><div><div class="t">'+esc(u.name)+' <span class="tag '+(u.role==='admin'?'xong':'giao')+'">'+roleLabel(u.role)+'</span></div><div class="s">ID: '+esc(u.username)+(u.staffId?(' · gắn NV: '+esc((db.staff.find(s=>s.id===u.staffId)||{}).name||'?')):'')+'</div></div></div>').join('')
-        || '<div class="empty">Chưa có tài khoản</div>') + '</div>';
+      + '<div class="hint" style="padding:6px 13px 0">Mỗi người một email + mật khẩu riêng (Firebase). Chỉ tài khoản tạo ở đây mới vào được app — người lạ có link cũng không đăng nhập được. Tài khoản bán hàng chỉ thấy đơn của mình, không thấy giá vốn/lợi nhuận/chi phí.</div>'
+      + ((db.accounts||[]).slice().sort((a,b)=>(a.role===b.role?0:(a.role==='admin'?-1:1))).map(a=>'<div class="list-item" onclick="formUser(\''+esc(a.email)+'\')"><div><div class="t">'+esc(a.name||a.email)+' <span class="tag '+(a.role==='admin'?'xong':'giao')+'">'+roleLabel(a.role)+'</span>'+(a.active===false?' <span class="tag huy">Đã khóa</span>':'')+'</div><div class="s">'+esc(a.email)+(a.staffId?(' · gắn NV: '+esc((db.staff.find(s=>s.id===a.staffId)||{}).name||'?')):'')+'</div></div></div>').join('')
+        || '<div class="empty">Chưa có tài khoản nào — bấm "+ Tạo tài khoản"</div>') + '</div>';
     h += '<div class="sec"><h3>Dữ liệu</h3><div style="padding:4px 13px 13px">'
       + '<button class="btn sm line" onclick="backup()">⬇ Sao lưu (JSON)</button>'
       + '<button class="btn sm line" onclick="$(\'imp\').click()">⬆ Khôi phục</button>'
@@ -1136,51 +1164,70 @@ async function saveIncome(){
   db.incomes.push(i); await saveRec('incomes', i); closeSheet(); render();
 }
 async function delIncome(id){ db.incomes = db.incomes.filter(x=>x.id!==id); await delRec('incomes', id); render(); }
-/* ================= TAI KHOAN DANG NHAP ================= */
-function formUser(id){
+/* ================= TAI KHOAN DANG NHAP (Firebase Auth) ================= */
+const isRootAcc = em => (em||'').toLowerCase() === (window.__ADMIN_EMAIL||'');
+function formUser(email){
   if(!isOwner()) return;
-  const u = db.users.find(x=>x.id===id);
-  if(u){
-    openSheet('<h2>Tài khoản: '+esc(u.name)+'</h2>'
-    +'<div class="hint">ID đăng nhập: <b>'+esc(u.username)+'</b> · Vai trò: '+roleLabel(u.role)+'</div>'
-    +'<label>Đặt mật khẩu mới (bỏ trống = giữ nguyên)</label><div class="pwrap"><input id="u_pass" type="password"><button type="button" class="pweye" onclick="togglePw(&quot;u_pass&quot;,this)">👁</button></div>'
-    +'<button class="btn" onclick="saveUser(\''+u.id+'\')">Lưu</button>'
-    +(u.role!=='admin'? '<button class="btn danger" onclick="delUser(\''+u.id+'\')">Xóa tài khoản</button>':'')
+  const a = (db.accounts||[]).find(x=>x.email===email);
+  if(a){
+    const st = db.staff.find(s=>s.id===a.staffId);
+    openSheet('<h2>Tài khoản: '+esc(a.name||a.email)+'</h2>'
+    +'<div class="hint">Email: <b>'+esc(a.email)+'</b> · Vai trò: '+roleLabel(a.role)+(a.active===false?' · <span style="color:var(--red)">ĐÃ KHÓA</span>':'')+(isRootAcc(a.email)?' · Tài khoản gốc':'')+'</div>'
+    +(a.role!=='admin'? ('<label>Gắn với nhân viên sale</label><select id="u_staff"><option value="">— Không —</option>'+db.staff.map(s=>'<option value="'+s.id+'" '+(s.id===a.staffId?'selected':'')+'>'+esc(s.name)+' ('+s.pct+'%)</option>').join('')+'</select>'
+      +'<button class="btn" onclick="saveAccStaff(\''+esc(a.email)+'\')">Lưu thay đổi</button>') : '')
+    +'<button class="btn line" onclick="sendReset(\''+esc(a.email)+'\')">📧 Gửi email đặt lại mật khẩu</button>'
+    +(!isRootAcc(a.email)? (a.active===false
+        ? '<button class="btn gold" onclick="toggleAcc(\''+esc(a.email)+'\',true)">🔓 MỞ KHÓA tài khoản</button>'
+        : '<button class="btn danger" onclick="toggleAcc(\''+esc(a.email)+'\',false)">🔒 KHÓA tài khoản (chặn đăng nhập ngay)</button>') : '')
+    +'<div class="hint">Người nghỉ việc: bấm KHÓA — họ bị chặn đăng nhập ngay lập tức, dữ liệu đơn hàng cũ vẫn giữ nguyên.</div>'
     +'<button class="btn line" onclick="closeSheet()">Đóng</button>');
     return;
   }
   openSheet('<h2>➕ Tạo tài khoản mới</h2>'
+  +'<label>Vai trò</label><select id="u_role" onchange="drawUserRole()"><option value="sale">Bán hàng (chỉ thấy đơn của mình)</option><option value="admin">Quản lý (toàn quyền)</option></select>'
   +'<div id="u_staffwrap"></div>'
   +'<label>Tên hiển thị *</label><input id="u_name" placeholder="VD: Sale Lan">'
-  +'<label>Tên đăng nhập (ID) *</label><input id="u_user" autocapitalize="off" placeholder="VD: sale01">'
-  +'<label>Mật khẩu *</label><div class="pwrap"><input id="u_pass" type="password"><button type="button" class="pweye" onclick="togglePw(&quot;u_pass&quot;,this)">👁</button></div>'
-  +'<div class="hint">Đưa ID + mật khẩu này cho người dùng. Họ đăng nhập ở cổng Bán hàng trên màn hình chính.</div>'
-  +'<button class="btn" onclick="saveUser(\'\')">Tạo tài khoản</button>'
+  +'<label>Email đăng nhập *</label><input id="u_email" type="email" autocapitalize="off" placeholder="VD: lan.anvifa@gmail.com">'
+  +'<div class="hint">Nên dùng email THẬT của người đó — để khi quên mật khẩu có thể tự nhận thư đặt lại.</div>'
+  +'<label>Mật khẩu (tối thiểu 6 ký tự) *</label><div class="pwrap"><input id="u_pass" type="password"><button type="button" class="pweye" onclick="togglePw(&quot;u_pass&quot;,this)">👁</button></div>'
+  +'<div class="hint">Đưa email + mật khẩu này cho người dùng. Họ có thể tự đổi mật khẩu sau khi đăng nhập (nút 👤 góc phải).</div>'
+  +'<button class="btn" id="u_create" onclick="saveUser()">Tạo tài khoản</button>'
   +'<button class="btn line" onclick="closeSheet()">Đóng</button>');
   drawUserRole();
 }
 function drawUserRole(){
-  if(!db.staff.length){ $('u_staffwrap').innerHTML = '<div class="hint">⚠ Chưa có nhân viên sale nào. Vào mục "Nhân viên sale" ở trên để thêm trước.</div>'; return; }
+  const role = $('u_role')? $('u_role').value : 'sale';
+  if(role!=='sale'){ $('u_staffwrap').innerHTML=''; return; }
+  if(!db.staff.length){ $('u_staffwrap').innerHTML = '<div class="hint">⚠ Chưa có nhân viên sale nào. Vào mục "Nhân viên sale" ở trên để thêm trước (để tính hoa hồng).</div>'; return; }
   $('u_staffwrap').innerHTML = '<label>Gắn với nhân viên *</label><select id="u_staff">'+db.staff.map(s=>'<option value="'+s.id+'">'+esc(s.name)+' ('+s.pct+'%)</option>').join('')+'</select>';
 }
-async function saveUser(id){
-  if(id){
-    const u = db.users.find(x=>x.id===id), p = $('u_pass').value;
-    if(p){ if(p.length<4){ alert('Mật khẩu tối thiểu 4 ký tự'); return; } u.pass = hp(p); }
-    await saveCatalog(); closeSheet(); render(); return;
-  }
-  const role = 'sale', name = $('u_name').value.trim(), un = $('u_user').value.trim().toLowerCase(), p = $('u_pass').value;
-  if(!name||!un||!p){ alert('Điền đủ thông tin'); return; }
-  if(p.length<4){ alert('Mật khẩu tối thiểu 4 ký tự'); return; }
-  if(db.users.some(x=>x.username===un)){ alert('ID này đã tồn tại'); return; }
-  if(!db.staff.length){ alert('Chưa có nhân viên sale để gắn.'); return; }
-  const staffId = $('u_staff').value;
-  db.users.push({id:uid(), username:un, pass:hp(p), role, name, staffId});
-  await saveCatalog(); closeSheet(); render();
+async function saveUser(){
+  const role = $('u_role').value, name = $('u_name').value.trim(), em = $('u_email').value.trim().toLowerCase(), p = $('u_pass').value;
+  if(!name||!em||!p){ alert('Điền đủ thông tin'); return; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){ alert('Email không hợp lệ'); return; }
+  if(p.length<6){ alert('Firebase yêu cầu mật khẩu tối thiểu 6 ký tự'); return; }
+  if((db.accounts||[]).some(x=>x.email===em)){ alert('Email này đã có tài khoản'); return; }
+  if(role==='sale' && !db.staff.length){ alert('Chưa có nhân viên sale để gắn.'); return; }
+  const staffId = role==='sale'? ($('u_staff')?$('u_staff').value:'') : '';
+  $('u_create').textContent='Đang tạo…'; $('u_create').disabled=true;
+  try{
+    await dataApi.createAccount(em, p, {name, role, staffId, active:true});
+    alert('Đã tạo tài khoản ✓\n\nEmail: '+em+'\nMật khẩu: (như vừa nhập)\n\nGửi thông tin này cho '+name+' qua Zalo.');
+    closeSheet(); render();
+  }catch(e){ alert(fbErr(e)); $('u_create').textContent='Tạo tài khoản'; $('u_create').disabled=false; }
 }
-async function delUser(id){
-  if(!confirm('Xóa tài khoản đăng nhập này? (Hồ sơ nhân viên và đơn hàng vẫn giữ nguyên)')) return;
-  db.users = db.users.filter(x=>x.id!==id); await saveCatalog(); closeSheet(); render();
+async function saveAccStaff(email){
+  try{ await dataApi.saveProfile(email, {staffId: $('u_staff').value||''}); alert('Đã lưu ✓'); closeSheet(); }
+  catch(e){ alert(fbErr(e)); }
+}
+async function toggleAcc(email, unlock){
+  if(!unlock && !confirm('Khóa tài khoản '+email+'?\nNgười này sẽ bị chặn đăng nhập ngay lập tức.')) return;
+  try{ await dataApi.saveProfile(email, {active: !!unlock}); closeSheet(); render(); }
+  catch(e){ alert(fbErr(e)); }
+}
+async function sendReset(email){
+  try{ await dataApi.resetPassword(email); alert('Đã gửi thư đặt lại mật khẩu tới '+email+'.\nNgười dùng mở hộp thư (kiểm tra cả Spam), bấm link trong thư để đặt mật khẩu mới.'); }
+  catch(e){ alert(fbErr(e)); }
 }
 /* ================= XUAT CSV & SAO LUU ================= */
 function dl(name, content, type){
@@ -1207,7 +1254,7 @@ function restore(inp){
     if(!d.products||!d.orders) throw 0;
     if(!confirm('Khôi phục sẽ THAY THẾ toàn bộ dữ liệu hiện tại (kể cả trên các máy khác). Tiếp tục?')) return;
     Object.assign(db, {products:d.products||[], customers:d.customers||[], staff:d.staff||[], suppliers:d.suppliers||[], promos:d.promos||[], users:d.users||[]});
-    ensureAdminSeed(); await saveCatalog();
+    await saveCatalog();
     for(const name of RECORD_COLLECTIONS){
       db[name] = d[name]||[];
       for(const rec of db[name]){ await saveRec(name, rec); }
@@ -1238,9 +1285,13 @@ setTimeout(function(){
      CHƯA điền gì thì app tự chạy bằng bộ nhớ trình duyệt (chỉ 1 máy, để test).
 ====================================================================== -->
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
+// EMAIL QUAN LY GOC — tai khoan nay luon co quyen cao nhat, khong the bi khoa
+const ADMIN_EMAIL = "phim.hoat.hinh.tiktok24@gmail.com";
+window.__ADMIN_EMAIL = ADMIN_EMAIL;
 
 // ĐIỀN 6 GIÁ TRỊ NÀY TỪ FIREBASE CONSOLE (Project settings → General → Your apps → SDK config)
 const firebaseConfig = {
@@ -1260,78 +1311,122 @@ if(useFirebase){
   const fdb = getFirestore(app);
   const auth = getAuth(app);
   const catalogRef = doc(fdb, "anvifa_meta", "catalog");
+  const emailKey = e => String(e||'').trim().toLowerCase();
+  const profRef = e => doc(fdb, 'anvifa_users', emailKey(e));
 
-  const authReady = new Promise((resolve)=>{
-    const unsub = onAuthStateChanged(auth, (u)=>{ if(u){ unsub(); resolve(); } });
-    signInAnonymously(auth).catch(err=>{ console.error("Firebase auth lỗi:", err); document.getElementById('sync').textContent='lỗi kết nối!'; });
+  // Kiem tra dang nhap: chi chap nhan tai khoan email/mat khau THAT (khong nhan anonymous)
+  onAuthStateChanged(auth, async (u)=>{
+    if(!u || u.isAnonymous || !u.email){
+      window.__profile = null;
+      if(window.showLogin) window.showLogin();
+      return;
+    }
+    try{
+      const em = emailKey(u.email);
+      let snap = await getDoc(profRef(em));
+      let p = snap.exists()? snap.data() : null;
+      if(!p){
+        if(em === ADMIN_EMAIL){
+          p = {email:em, name:'Quản lý ANVIFA', role:'admin', staffId:'', active:true};
+          await setDoc(profRef(em), p);
+        } else {
+          alert('Tài khoản '+em+' chưa được cấp quyền dùng app này.\nLiên hệ Quản lý để được tạo tài khoản.');
+          await signOut(auth); return;
+        }
+      }
+      if(p.active===false && em !== ADMIN_EMAIL){
+        alert('Tài khoản này đã bị KHÓA. Liên hệ Quản lý nếu có nhầm lẫn.');
+        await signOut(auth); return;
+      }
+      window.onProfileReady(p);
+    }catch(e){
+      console.error(e);
+      if(window.showLogin) window.showLogin('Không kiểm tra được quyền tài khoản — thử lại. ('+(e.code||e.message||e)+')');
+      try{ await signOut(auth); }catch(_){}
+    }
   });
 
   let lastCatalogPush = null;
-  const lastRecPush = {};
 
   window.dataApi = {
+    /* ---- dang nhap / tai khoan ---- */
+    login(em, p){ return signInWithEmailAndPassword(auth, emailKey(em), p); },
+    logout(){ return signOut(auth); },
+    resetPassword(em){ return sendPasswordResetEmail(auth, emailKey(em)); },
+    async changeMyPassword(oldP, newP){
+      const u = auth.currentUser; if(!u) throw new Error('Chưa đăng nhập');
+      await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, oldP));
+      await updatePassword(u, newP);
+    },
+    async createAccount(em, pass, profile){
+      // Dung app Firebase PHU de tao tai khoan moi ma KHONG lam Quan ly bi dang xuat
+      const sec = initializeApp(firebaseConfig, 'taotk-'+Date.now());
+      try{
+        const sauth = getAuth(sec);
+        await createUserWithEmailAndPassword(sauth, emailKey(em), pass);
+        try{ await signOut(sauth); }catch(_){}
+      } finally { try{ await deleteApp(sec); }catch(_){} }
+      await setDoc(profRef(em), {...profile, email:emailKey(em)});
+    },
+    saveProfile(em, patch){ return setDoc(profRef(em), patch, {merge:true}); },
+    subscribeProfiles(cb){
+      onSnapshot(collection(fdb, 'anvifa_users'), snap=>cb(snap.docs.map(d=>d.data())), err=>console.error('profiles', err));
+    },
+    /* ---- du lieu ---- */
     async getCatalog(){
-      await authReady;
       const snap = await getDoc(catalogRef);
       if(!snap.exists()) throw new Error('empty');
       return snap.data();
     },
     async setCatalog(obj){
-      await authReady;
       lastCatalogPush = JSON.stringify(obj);
       await setDoc(catalogRef, obj);
     },
     async getRecords(name){
-      await authReady;
       const snap = await getDocs(collection(fdb, 'anvifa_'+name));
       return snap.docs.map(d=>d.data());
     },
     async setRecord(name, rec){
-      await authReady;
-      lastRecPush[name+':'+rec.id] = JSON.stringify(rec);
       await setDoc(doc(fdb, 'anvifa_'+name, rec.id), rec);
     },
     async delRecord(name, id){
-      await authReady;
       await deleteDoc(doc(fdb, 'anvifa_'+name, id));
     },
-    async getSession(){
-      const v = localStorage.getItem('anvifa_session');
-      if(!v) throw new Error('empty');
-      return v;
-    },
-    async setSession(v){ localStorage.setItem('anvifa_session', v); },
     subscribeCatalog(cb){
       onSnapshot(catalogRef, snap=>{
         if(!snap.exists()){ cb(null); return; }
         const raw = JSON.stringify(snap.data());
         if(raw !== lastCatalogPush) cb(snap.data());
-      });
+      }, err=>console.error('catalog', err));
     },
     subscribeCollection(name, cb){
       onSnapshot(collection(fdb, 'anvifa_'+name), snap=>{
         const list = snap.docs.map(d=>d.data());
         cb(list);
-      });
+      }, err=>console.error(name, err));
     }
   };
-  authReady.then(()=>{ window.startApp(); });
 } else {
-  // Chưa cấu hình Firebase -> chạy tạm bằng bộ nhớ trình duyệt (chỉ 1 máy)
+  // Chưa cấu hình Firebase -> chạy tạm bằng bộ nhớ trình duyệt (chỉ 1 máy, để test giao diện)
   const lsKey = n => 'anvifa_local_'+n;
   window.dataApi = {
+    login(){ return Promise.reject(new Error('Chưa cấu hình Firebase')); },
+    logout(){ window.__profile=null; if(window.showLogin) window.showLogin(); return Promise.resolve(); },
+    resetPassword(){ return Promise.reject(new Error('Chưa cấu hình Firebase')); },
+    changeMyPassword(){ return Promise.reject(new Error('Chưa cấu hình Firebase')); },
+    createAccount(){ return Promise.reject(new Error('Chưa cấu hình Firebase')); },
+    saveProfile(){ return Promise.resolve(); },
+    subscribeProfiles(cb){ cb([]); },
     async getCatalog(){ const v = localStorage.getItem(lsKey('catalog')); if(v===null) throw new Error('empty'); return JSON.parse(v); },
     async setCatalog(obj){ localStorage.setItem(lsKey('catalog'), JSON.stringify(obj)); },
     async getRecords(name){ const v = localStorage.getItem(lsKey(name)); return v? JSON.parse(v) : []; },
     async setRecord(name, rec){ const list = await this.getRecords(name); const i = list.findIndex(x=>x.id===rec.id); if(i>=0) list[i]=rec; else list.push(rec); localStorage.setItem(lsKey(name), JSON.stringify(list)); },
     async delRecord(name, id){ const list = await this.getRecords(name); localStorage.setItem(lsKey(name), JSON.stringify(list.filter(x=>x.id!==id))); },
-    async getSession(){ const v = localStorage.getItem('anvifa_session'); if(!v) throw new Error('empty'); return v; },
-    async setSession(v){ localStorage.setItem('anvifa_session', v); },
     subscribeCatalog(cb){ this.getCatalog().then(cb).catch(()=>cb(null)); },
     subscribeCollection(name, cb){ this.getRecords(name).then(list=>cb(list)); }
   };
-  console.warn('ANVIFA: chưa cấu hình Firebase — dữ liệu chỉ lưu trên máy này. Xem hướng dẫn đi kèm để bật đồng bộ chung.');
-  window.startApp();
+  console.warn('ANVIFA: chưa cấu hình Firebase — chạy chế độ thử trên máy này.');
+  window.onProfileReady({email:'demo@local', name:'Chế độ thử', role:'admin', staffId:'', active:true});
 }
 </script>
 </body>

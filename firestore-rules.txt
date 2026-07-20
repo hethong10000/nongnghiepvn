@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function loggedIn() { return request.auth != null && request.auth.token.email != null; }
+    function isRoot() { return loggedIn() && request.auth.token.email == 'phim.hoat.hinh.tiktok24@gmail.com'; }
+    function hasProfile() { return exists(/databases/$(database)/documents/anvifa_users/$(request.auth.token.email)); }
+    function myProfile() { return get(/databases/$(database)/documents/anvifa_users/$(request.auth.token.email)).data; }
+    function isActive() { return isRoot() || (loggedIn() && hasProfile() && myProfile().active == true); }
+    function isAdmin() { return isRoot() || (isActive() && myProfile().role == 'admin'); }
+
+    // Danh sach tai khoan: ai dang nhap cung doc duoc, chi Quan ly duoc sua
+    match /anvifa_users/{email} {
+      allow read: if loggedIn();
+      allow write: if isAdmin();
+    }
+
+    // Du lieu APP BAN HANG: chi tai khoan email dang hoat dong moi doc/ghi duoc
+    match /anvifa_meta/{docId} { allow read, write: if isActive(); }
+    match /anvifa_orders/{docId} { allow read, write: if isActive(); }
+    match /anvifa_entries/{docId} { allow read, write: if isActive(); }
+    match /anvifa_quotes/{docId} { allow read, write: if isActive(); }
+    match /anvifa_adjustments/{docId} { allow read, write: if isActive(); }
+    match /anvifa_incomes/{docId} { allow read, write: if isActive(); }
+    match /anvifa_expenses/{docId} { allow read, write: if isActive(); }
+    match /anvifa_labelEntries/{docId} { allow read, write: if isActive(); }
+
+    // Du lieu APP KE TOAN (so hoa don): giu nguyen nhu cu, se nang cap dang nhap o dot sau
+    match /ktoan_meta/{docId} { allow read, write: if request.auth != null; }
+    match /ktoan_invoices/{docId} { allow read, write: if request.auth != null; }
+    match /ktoan_vouchers/{docId} { allow read, write: if request.auth != null; }
+    match /ktoan_payrolls/{docId} { allow read, write: if request.auth != null; }
+    match /ktoan_expenses/{docId} { allow read, write: if request.auth != null; }
+  }
+}
